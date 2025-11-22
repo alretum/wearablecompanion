@@ -94,14 +94,11 @@ export class PredictionAlgorithm {
   }
 
   /**
-   * TODO: Implement tremor pattern detection
+   * Mock implementation: Detect tremor pattern in recent data
    * Look for 4-6 Hz oscillations in accelerometer/gyroscope data
    */
   private detectTremorPattern(): boolean {
-    // Placeholder: Implement FFT or peak detection
-    // Research shows Parkinson's tremor is typically 4-6 Hz
-    
-    // Simple placeholder: Check for high frequency variations
+    // Simple mock: Check for high frequency variations with lower threshold
     if (this.accelBuffer.length < 20) return false;
     
     const recentAccel = this.accelBuffer.slice(-20);
@@ -109,27 +106,26 @@ export class PredictionAlgorithm {
       Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z)
     ));
     
-    return variance > AppConfig.TREMOR_THRESHOLD;
+    // Mock: Lower threshold for testing (30% of real threshold)
+    return variance > (AppConfig.TREMOR_THRESHOLD * 0.3);
   }
 
   /**
-   * TODO: Implement gait disturbance detection
-   * Analyze acceleration patterns for:
-   * - Reduced stride length
-   * - Increased stride variability
-   * - Festination (rapid small steps)
+   * Mock implementation: Detect gait disturbance
+   * Analyzes acceleration patterns for irregular gait
    */
   private detectGaitDisturbance(): boolean {
-    // Placeholder: Implement gait analysis
-    // Look for irregular patterns in vertical (y-axis) acceleration
-    
+    // Mock: Look for irregular patterns in vertical acceleration
     if (this.accelBuffer.length < 50) return false;
     
-    // Simple placeholder: Check for irregular patterns
     const recentY = this.accelBuffer.slice(-50).map(a => a.y);
     const yVariance = this.calculateVariance(recentY);
     
-    return yVariance > 2.0; // Threshold to be tuned
+    // Mock: Lower threshold + random element for testing
+    const hasHighVariance = yVariance > 1.5; // Slightly lower than production
+    const randomChance = Math.random() < 0.03; // 3% chance
+    
+    return hasHighVariance || randomChance;
   }
 
   /**
@@ -151,19 +147,23 @@ export class PredictionAlgorithm {
   }
 
   /**
-   * TODO: Implement your freeze probability calculation
-   * Combine indicators using weights based on research or ML model
+   * Mock implementation: Calculate freeze probability
+   * Combines indicators using weighted scoring
    */
   private calculateFreezeProbability(indicators: FreezeIndicators): number {
-    // Placeholder: Simple weighted combination
-    // TODO: Replace with your trained model or sophisticated algorithm
-    
+    // Mock: Weighted combination with some randomness
     let score = 0;
+    
+    // Weight indicators based on research importance
     if (indicators.tremor) score += 0.3;
     if (indicators.gaitDisturbance) score += 0.5;
     if (indicators.stressSpike) score += 0.2;
     
-    return Math.min(score, 1.0);
+    // Mock: Add small random variation (±10%) for testing
+    const variation = (Math.random() - 0.5) * 0.2;
+    score = Math.max(0, Math.min(1.0, score + variation));
+    
+    return score;
   }
 
   /**

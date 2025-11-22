@@ -33,5 +33,5 @@ export class AppConfig {
   static readonly AUTO_START_MONITORING = false;
   
   // Data management
-  static readonly CLEAR_DATA_AFTER_SYNC = true; // Set to false to keep all data in report.json
+  static readonly CLEAR_DATA_AFTER_SYNC = false; // Set to false to keep all data in report.json
 }

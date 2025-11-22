@@ -68,16 +68,12 @@ export class TremorDetector {
         this.currentTremor = {
           severity: 0,
           duration: 0,
-          timestamp: this.tremorStartTime,
-          accelerometerData: [],
-          gyroscopeData: []
+          timestamp: this.tremorStartTime
         };
         hilog.info(DOMAIN, TAG, 'Tremor started');
       }
 
-      // Accumulate data during tremor
-      this.currentTremor.accelerometerData.push(accel);
-      this.currentTremor.gyroscopeData.push(gyro);
+      // Update tremor metrics (no raw sensor data stored)
       this.currentTremor.duration = accel.timestamp - this.tremorStartTime;
       this.currentTremor.severity = this.calculateTremorSeverity();
 
@@ -130,15 +126,15 @@ export class TremorDetector {
 
   /**
    * Mock implementation: Calculate tremor severity (0-10 scale)
-   * Based on amplitude and duration
+   * Based on amplitude and duration from buffered sensor data
    */
   private calculateTremorSeverity(): number {
-    if (this.currentTremor === null || this.currentTremor.accelerometerData.length === 0) {
+    if (this.currentTremor === null || this.accelBuffer.length === 0) {
       return 0;
     }
 
-    // Calculate based on amplitude
-    const magnitudes = this.currentTremor.accelerometerData.map(a =>
+    // Calculate based on amplitude from recent buffer
+    const magnitudes = this.accelBuffer.map(a =>
       Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z)
     );
 

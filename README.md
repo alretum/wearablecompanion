@@ -27,12 +27,12 @@ This system monitors motion patterns and physiological signals in real-time to:
 
 ## 🚀 Quick Start (3 Steps)
 
-### 1. Deploy AWS Backend (1 hour)
+### 1. Deploy AWS Backend (30 minutes)
 ```bash
 # See AWS_SETUP.md for details
-# - Create 3 DynamoDB tables
-# - Deploy 3 Lambda functions  
-# - Set up API Gateway
+# - Create 2 S3 buckets (reports + heart rate)
+# - Deploy 2 Lambda functions  
+# - Set up API Gateway with 2 endpoints
 ```
 
 ### 2. Configure App (5 minutes)
@@ -40,9 +40,12 @@ This system monitors motion patterns and physiological signals in real-time to:
 // Edit: entry/src/main/ets/config/AppConfig.ets
 
 // AWS endpoints - replace with your actual API Gateway URLs
-static readonly TREMOR_REPORT_ENDPOINT = 'https://YOUR-API...';
-static readonly FREEZE_ALERT_ENDPOINT = 'https://YOUR-API...';
-static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API...';
+static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API.../upload-report';
+static readonly HEART_RATE_ENDPOINT = 'https://YOUR-API.../upload-heartrate';
+
+// Old endpoints not used anymore
+static readonly TREMOR_REPORT_ENDPOINT = '';
+static readonly FREEZE_ALERT_ENDPOINT = '';
 
 // Monitoring behavior - app runs continuously by default
 static readonly AUTO_START_MONITORING = true; // Set false to require manual start
@@ -74,11 +77,13 @@ To require manual start: Set `AUTO_START_MONITORING = false` in AppConfig.ets
 
 ## 📱 Local Data Management
 
-All tremors and freeze predictions are logged to a local JSON file:
+All tremors and freeze predictions are logged to local JSON files:
+
+### 1. Report Data (Processed Metrics Only)
 
 **File Location**: `{app_files_dir}/report.json`
 
-**File Structure**:
+**File Structure** (note: NO raw sensor data):
 ```json
 {
   "sessionId": "SESSION_1234567890",
@@ -92,9 +97,7 @@ All tremors and freeze predictions are logged to a local JSON file:
     {
       "severity": 6.5,
       "duration": 2000,
-      "timestamp": 1234567890000,
-      "accelerometerData": [...],
-      "gyroscopeData": [...]
+      "timestamp": 1234567890000
     }
   ],
   "freezePredictions": [
@@ -108,28 +111,81 @@ All tremors and freeze predictions are logged to a local JSON file:
         "stressSpike": false
       }
     }
+  ],
+  "lastUpdated": 1234567890000
+}
+```
+
+**Uploaded to**: `/upload-report` endpoint every 5 minutes
+
+### 2. Heart Rate Data (Aggregated per Minute)
+
+**Content**: 5 minutes of aggregated heart rate statistics
+
+**Structure**:
+```json
+{
+  "userId": "USER_ABC",
+  "deviceId": "DEVICE_XYZ",
+  "reportTimestamp": 1234567890000,
+  "minutes": [
+    {
+      "timestamp": 1234567200000,
+      "avgBpm": 72.5,
+      "minBpm": 68,
+      "maxBpm": 78,
+      "sampleCount": 60
+    },
+    // ... 4 more minutes
   ]
 }
 ```
 
-This file is continuously updated and uploaded to the cloud for processing.
+**Uploaded to**: `/upload-heartrate` endpoint every 5 minutes
+
+### Data Characteristics
+
+- **Processed Data Only**: Raw accelerometer/gyroscope data NOT stored (saves space)
+- **Continuous Logging**: All events written immediately to files
+- **5-Minute Upload**: Both files uploaded every 5 minutes
+- **Auto-Clear**: Data cleared after successful upload (if `CLEAR_DATA_AFTER_SYNC = true`)
+
+---
 
 ## ☁️ Cloud Integration
 
-### Data Upload Strategy
+### Two Separate Endpoints
 
-**Periodic Sync** (Every 5 minutes):
-- Complete `report.json` uploaded to `/sync-data` endpoint
-- On success: Tremors and predictions cleared from file (if `CLEAR_DATA_AFTER_SYNC = true`)
-- Session metadata retained for continuity
+**Endpoint 1: `/upload-report`**
+- Receives: Processed tremor and freeze prediction data
+- Format: Complete report.json with severity, duration, probability metrics
+- Storage: S3 bucket organized by userId/sessionId
 
-**Immediate Alerts**:
-- Freeze predictions sent instantly to `/freeze-alert`
-- Critical for real-time patient warnings
+**Endpoint 2: `/upload-heartrate`**
+- Receives: 5 minutes of aggregated heart rate data (1 entry per minute)
+- Format: avgBpm, minBpm, maxBpm, sampleCount for each minute
+- Storage: S3 bucket organized by userId/timestamp
 
-**Batch Reports**:
-- Every 10 tremors sent to `/tremor-report`
-- Reduces API calls while maintaining timeliness
+### AWS Architecture
+```
+Wearable Watch
+    ↓ (report.json + heartrate.json via HTTPS)
+AWS API Gateway
+    ├─→ /upload-report → Lambda → S3 (Reports)
+    └─→ /upload-heartrate → Lambda → S3 (Heart Rate)
+    ↓
+S3 Storage (Organized by User/Session)
+    ↓
+Doctor Dashboard / Data Analysis
+```
+
+### AWS Components
+- **API Gateway**: Two HTTPS endpoints for data upload
+- **Lambda Functions**: Validate and save to S3 (one per endpoint)
+- **S3**: Long-term storage organized by user ID
+- **CloudWatch**: Monitor uploads and errors
+
+See `AWS_SETUP.md` for complete setup instructions.
 
 ### Data Retention Control
 
@@ -141,30 +197,6 @@ static readonly CLEAR_DATA_AFTER_SYNC = false; // Keep all data for debugging
 
 ---
 
-The system integrates with AWS for data storage and analysis:
-
-### AWS Architecture
-```
-Wearable Watch
-    ↓ (report.json via HTTPS)
-AWS API Gateway
-    ↓
-Lambda Functions
-    ├─ Process tremor reports
-    ├─ Analyze freeze predictions
-    └─ Store in DynamoDB
-    ↓
-Doctor Dashboard
-```
-
-### AWS Components
-- **API Gateway**: Secure HTTPS endpoints for data upload
-- **Lambda Functions**: Process and validate incoming reports
-- **DynamoDB**: Store patient data for long-term analysis
-- **CloudWatch**: Monitor system health and errors
-
-See `AWS_SETUP.md` for complete setup instructions.
-
 ## 🏗️ Architecture
 
 ```
@@ -175,8 +207,12 @@ entry/src/main/ets/
 │   ├── SensorData.ets         # Data models and interfaces
 │   └── SensorManager.ets      # Sensor data collection
 ├── algorithms/
-│   ├── PredictionAlgorithm.ets # Freeze prediction logic
-│   └── TremorDetector.ets      # Tremor detection and logging
+│   ├── PredictionAlgorithm.ets # Freeze prediction logic (mock)
+│   └── TremorDetector.ets      # Tremor detection (mock)
+├── services/
+│   ├── MonitoringService.ets   # Main orchestrator
+│   ├── ReportLogger.ets        # Logs tremors/freezes to report.json
+│   └── HeartRateLogger.ets     # Aggregates heart rate per minute
 ├── connectivity/
 │   └── APIService.ets         # AWS Lambda communication
 ├── services/

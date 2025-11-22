@@ -13,6 +13,7 @@ import { PredictionAlgorithm } from '../algorithms/PredictionAlgorithm';
 import { TremorDetector } from '../algorithms/TremorDetector';
 import { APIService, ConnectivityResults } from '../connectivity/APIService';
 import { ReportLogger } from './ReportLogger';
+import { HeartRateLogger } from './HeartRateLogger';
 import { 
   AppState, 
   MonitoringStatus, 
@@ -43,11 +44,13 @@ export class MonitoringService {
   private tremorDetector: TremorDetector;
   private apiService: APIService;
   private reportLogger: ReportLogger | null = null;
+  private heartRateLogger: HeartRateLogger | null = null;
   
   private appState: AppState;
   private stateCallbacks: ((state: AppState) => void)[] = [];
   
   private syncTimer: number = -1;
+  private heartRateAggregationTimer: number = -1;
   private allPredictions: FreezePrediction[] = [];
 
   private constructor() {
@@ -77,7 +80,8 @@ export class MonitoringService {
     const userId = 'USER_' + Date.now(); // TODO: Replace with actual user ID
     const deviceId = 'DEVICE_' + Date.now();
     this.reportLogger = new ReportLogger(context, userId, deviceId);
-    hilog.info(DOMAIN, TAG, 'MonitoringService initialized with ReportLogger');
+    this.heartRateLogger = new HeartRateLogger(userId, deviceId);
+    hilog.info(DOMAIN, TAG, 'MonitoringService initialized with ReportLogger and HeartRateLogger');
   }
 
   /**
@@ -107,6 +111,7 @@ export class MonitoringService {
 
     // Start periodic data sync
     this.startDataSync();
+    this.startHeartRateAggregation();
     
     this.notifyStateChange();
     hilog.info(DOMAIN, TAG, 'Monitoring started successfully');
@@ -125,9 +130,11 @@ export class MonitoringService {
     
     this.sensorManager.stopMonitoring();
     this.stopDataSync();
+    this.stopHeartRateAggregation();
     
     // Final sync before stopping
     this.syncDataToServer();
+    this.syncHeartRateToServer();
     
     this.appState.status = MonitoringStatus.STOPPED;
     this.notifyStateChange();
@@ -164,6 +171,10 @@ export class MonitoringService {
    */
   private handleHeartRateData(heartRate: HeartRateData): void {
     this.appState.currentHeartRate = heartRate;
+    
+    // Add to heart rate logger
+    this.heartRateLogger?.addReading(heartRate);
+    
     this.notifyStateChange();
   }
 
@@ -298,6 +309,56 @@ export class MonitoringService {
   }
 
   /**
+   * Start periodic heart rate aggregation (every minute)
+   */
+  private startHeartRateAggregation(): void {
+    if (this.heartRateAggregationTimer !== -1) {
+      clearInterval(this.heartRateAggregationTimer);
+    }
+
+    this.heartRateAggregationTimer = setInterval(() => {
+      this.heartRateLogger?.triggerAggregation();
+    }, AppConfig.HEART_RATE_AGGREGATE_INTERVAL_MS);
+  }
+
+  /**
+   * Stop periodic heart rate aggregation
+   */
+  private stopHeartRateAggregation(): void {
+    if (this.heartRateAggregationTimer !== -1) {
+      clearInterval(this.heartRateAggregationTimer);
+      this.heartRateAggregationTimer = -1;
+    }
+  }
+
+  /**
+   * Sync heart rate data to server
+   */
+  private syncHeartRateToServer(): void {
+    if (!this.heartRateLogger) {
+      return;
+    }
+
+    // Only upload if we have data
+    if (!this.heartRateLogger.hasData()) {
+      hilog.info(DOMAIN, TAG, 'No heart rate data to upload');
+      return;
+    }
+
+    const heartRateReport = this.heartRateLogger.getReport();
+    
+    this.apiService.uploadHeartRateReport(heartRateReport).then((success) => {
+      if (success) {
+        // Clear heart rate data after successful upload
+        this.heartRateLogger?.clearData();
+        hilog.info(DOMAIN, TAG, 'Heart rate data synced and cleared successfully');
+      } else {
+        hilog.error(DOMAIN, TAG, 'Failed to sync heart rate data');
+      }
+    });
+  }
+
+  /**
    * Start periodic data sync
    */
   private startDataSync(): void {
@@ -307,6 +368,7 @@ export class MonitoringService {
 
     this.syncTimer = setInterval(() => {
       this.syncDataToServer();
+      this.syncHeartRateToServer();
     }, AppConfig.DATA_SYNC_INTERVAL_MS);
   }
 

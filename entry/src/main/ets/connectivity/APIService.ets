@@ -11,6 +11,7 @@
 
 import { http } from '@kit.NetworkKit';
 import { TremorEvent, FreezePrediction } from '../sensors/SensorData';
+import { HeartRateReport } from '../services/HeartRateLogger';
 import { AppConfig } from '../config/AppConfig';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
@@ -163,7 +164,7 @@ export class APIService {
 
   /**
    * Upload report.json file to AWS Lambda for analysis
-   * Endpoint: POST /sync-data
+   * Endpoint: POST /upload-report
    * 
    * This sends the entire report.json file containing all tremors and freeze predictions
    */
@@ -183,6 +184,31 @@ export class APIService {
 
     } catch (error) {
       hilog.error(DOMAIN, TAG, `Failed to upload report: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Upload heart rate report to AWS Lambda
+   * Endpoint: POST /upload-heartrate
+   * 
+   * This sends 5 minutes of aggregated heart rate data (1 entry per minute)
+   */
+  public async uploadHeartRateReport(report: HeartRateReport): Promise<boolean> {
+    try {
+      hilog.info(DOMAIN, TAG, `Uploading heart rate report with ${report.minutes.length} minutes of data`);
+      
+      const response = await this.sendRequest(
+        AppConfig.HEART_RATE_ENDPOINT,
+        http.RequestMethod.POST,
+        report
+      );
+
+      hilog.info(DOMAIN, TAG, `Heart rate report uploaded successfully: ${JSON.stringify(response)}`);
+      return true;
+
+    } catch (error) {
+      hilog.error(DOMAIN, TAG, `Failed to upload heart rate report: ${error}`);
       return false;
     }
   }
@@ -244,7 +270,7 @@ export class APIService {
   private async sendRequest(
     url: string,
     method: http.RequestMethod,
-    data?: TremorReportPayload | FreezeAlertPayload | SyncDataPayload | Object
+    data?: TremorReportPayload | FreezeAlertPayload | SyncDataPayload | HeartRateReport | Object
   ): Promise<HttpResponseData> {
     return new Promise((resolve, reject) => {
       const httpRequest = http.createHttp();

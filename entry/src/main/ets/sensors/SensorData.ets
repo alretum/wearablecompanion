@@ -23,13 +23,11 @@ export interface HeartRateData {
   variability?: number; // For detecting pulse spikes
 }
 
-// Tremor detection result
+// Tremor detection result (processed data only, no raw sensor data)
 export interface TremorEvent {
   severity: number; // 0-10 scale
   duration: number; // milliseconds
   timestamp: number;
-  accelerometerData: AccelerometerData[];
-  gyroscopeData: GyroscopeData[];
 }
 
 // Freeze prediction result

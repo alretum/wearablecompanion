@@ -62,12 +62,15 @@ This HarmonyOS wearable application predicts and detects Parkinson's disease sym
 │                        WEARABLE DEVICE                          │
 │                                                                 │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    │
-│  │  Sensors     │ -> │  Algorithms  │ -> │ ReportLogger │    │
+│  │  Sensors     │ -> │  Algorithms  │ -> │   Loggers    │    │
 │  │              │    │              │    │              │    │
-│  │ • Accel 50Hz │    │ • Tremor     │    │ report.json  │    │
-│  │ • Gyro 50Hz  │    │ • Freeze     │    │ (local file) │    │
+│  │ • Accel 50Hz │    │ • Tremor     │    │ ReportLogger │    │
+│  │ • Gyro 50Hz  │    │ • Freeze     │    │ (processed)  │    │
 │  │ • Heart 1Hz  │    │ • Predict    │    │              │    │
-│  └──────────────┘    └──────────────┘    └──────────────┘    │
+│  └──────────────┘    └──────────────┘    │ HeartRate    │    │
+│                                           │ Logger       │    │
+│                                           │ (aggregated) │    │
+│                                           └──────────────┘    │
 │                                                  │              │
 │                                                  v              │
 │                                          ┌──────────────┐      │
@@ -77,17 +80,19 @@ This HarmonyOS wearable application predicts and detects Parkinson's disease sym
 └───────────────────────────────────────────────┼────────────────┘
                                                 │
                                                 │ Upload every 5 min
-                                                │
+                                                │ (2 endpoints)
                                                 v
 ┌─────────────────────────────────────────────────────────────────┐
 │                          AWS CLOUD                              │
 │                                                                 │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    │
-│  │ API Gateway  │ -> │   Lambda     │ -> │  DynamoDB    │    │
+│  │ API Gateway  │ -> │   Lambda     │ -> │      S3      │    │
 │  │              │    │              │    │              │    │
-│  │ /tremor      │    │ Process &    │    │ • Sessions   │    │
-│  │ /freeze      │    │ Validate     │    │ • Tremors    │    │
-│  │ /sync-data   │    │ Data         │    │ • Freezes    │    │
+│  │ /upload-     │    │ Validate &   │    │ • Reports    │    │
+│  │  report      │    │ Save to S3   │    │   bucket     │    │
+│  │              │    │              │    │              │    │
+│  │ /upload-     │    │ (2 separate  │    │ • Heart Rate │    │
+│  │  heartrate   │    │  functions)  │    │   bucket     │    │
 │  └──────────────┘    └──────────────┘    └──────────────┘    │
 │                                                                 │
 │                           ┌──────────────┐                     │

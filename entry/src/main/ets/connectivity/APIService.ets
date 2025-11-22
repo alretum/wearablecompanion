@@ -75,11 +75,18 @@ export interface SyncDataPayload {
   data: SyncDataPayloadData;
 }
 
+export interface TremorDataPayload {
+  status: string;
+  magnitude: number;
+  frequency: number;
+}
+
 export interface HeartRateMinuteData {
   timestamp: string;
   avgBpm: number;
   minBpm: number;
   maxBpm: number;
+  tremorData?: TremorDataPayload | null;
 }
 
 export interface HeartRateUploadPayload {
@@ -241,20 +248,29 @@ export class APIService {
    * Endpoint: POST /upload-heartrate
    * 
    * This sends 5 minutes of aggregated heart rate data (1 entry per minute)
+   * Each minute includes tremor/activity data if available
    */
   public async uploadHeartRateReport(report: HeartRateReport): Promise<boolean> {
-    // Transform report to match API format (excluding sampleCount)
+    // Transform report to match API format (including tremor data)
     const payload: HeartRateUploadPayload = {
       userId: report.userId,
       deviceId: report.deviceId,
       reportTimestamp: new Date(report.reportTimestamp).toISOString(),
-      minuteData: report.minutes.map((minute): HeartRateMinuteData => ({
-        timestamp: new Date(minute.timestamp).toISOString(),
-        avgBpm: minute.avgBpm,
-        minBpm: minute.minBpm,
-        maxBpm: minute.maxBpm
-        // sampleCount excluded as requested
-      }))
+      minuteData: report.minutes.map((minute): HeartRateMinuteData => {
+        const tremorPayload: TremorDataPayload | null = minute.tremorData ? {
+          status: minute.tremorData.status,
+          magnitude: minute.tremorData.magnitude,
+          frequency: minute.tremorData.frequency
+        } : null;
+        
+        return {
+          timestamp: new Date(minute.timestamp).toISOString(),
+          avgBpm: minute.avgBpm,
+          minBpm: minute.minBpm,
+          maxBpm: minute.maxBpm,
+          tremorData: tremorPayload
+        };
+      })
     };
 
     try {

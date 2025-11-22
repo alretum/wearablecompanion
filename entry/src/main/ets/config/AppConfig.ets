@@ -44,7 +44,7 @@ export class AppConfig {
   static readonly DATA_COLLECTION_SAVE_INTERVAL = 100; // Save every N readings (accelerometer/gyroscope)
   
   // Algorithm enable/disable (disable for pure data collection)
-  static readonly ENABLE_TREMOR_DETECTION = false; // Set to false to disable tremor detection algorithm
+  static readonly ENABLE_TREMOR_DETECTION = true; // Set to false to disable tremor detection algorithm
   static readonly ENABLE_FREEZE_DETECTION = false; // Set to false to disable freeze prediction algorithm
   
   // Sensor type selection

@@ -10,31 +10,59 @@
     "requestPermissions": [
       { 
         "name": "ohos.permission.ACCELEROMETER",
-        "reason": "$string:permission_accelerometer_reason"
+        "reason": "$string:permission_accelerometer_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
       },
       { 
         "name": "ohos.permission.GYROSCOPE",
-        "reason": "$string:permission_gyroscope_reason"
+        "reason": "$string:permission_gyroscope_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
       },
       { 
         "name": "ohos.permission.READ_HEALTH_DATA",
-        "reason": "$string:permission_health_reason"
+        "reason": "$string:permission_health_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
       },
       { 
         "name": "ohos.permission.INTERNET",
-        "reason": "$string:permission_internet_reason"
+        "reason": "$string:permission_internet_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
       },
       { 
         "name": "ohos.permission.DISTRIBUTED_DATASYNC",
-        "reason": "$string:permission_sync_reason"
+        "reason": "$string:permission_sync_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
       },
       { 
         "name": "ohos.permission.KEEP_BACKGROUND_RUNNING",
-        "reason": "$string:permission_background_reason"
+        "reason": "$string:permission_background_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "always"
+        }
       },
       { 
         "name": "ohos.permission.VIBRATE",
-        "reason": "$string:permission_vibrate_reason"
+        "reason": "$string:permission_vibrate_reason",
+        "usedScene": {
+          "abilities": ["EntryAbility"],
+          "when": "inuse"
+        }
       }
     ],
 

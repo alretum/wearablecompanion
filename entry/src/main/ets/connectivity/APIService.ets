@@ -217,8 +217,8 @@ export class APIService {
   private async sendRequest(
     url: string,
     method: 'GET' | 'POST' | 'PUT',
-    data?: any
-  ): Promise<any> {
+    data?: Record<string, Object>
+  ): Promise<Record<string, Object>> {
     return new Promise((resolve, reject) => {
       const httpRequest = http.createHttp();
 

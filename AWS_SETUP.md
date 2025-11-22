@@ -1,102 +1,87 @@
-# AWS Lambda Setup Guide
+# AWS Setup Guide - Simplified
 
-This guide walks you through setting up the AWS infrastructure for the Parkinson's Freeze Detection system.
+This guide shows you how to set up a simple AWS backend to receive the `report.json` file from your HarmonyOS wearable.
 
-## Architecture Overview
+## Overview
+
+The wearable watch sends a complete `report.json` file every 5 minutes to your AWS endpoint. That's it!
 
 ```
-Wearable Device (HarmonyOS)
-    ↓ report.json (HTTPS)
+Watch (HarmonyOS)
+  ↓ POST /upload-report (every 5 min)
+  ↓ Complete report.json file
 API Gateway
-    ↓
-Lambda Functions (Node.js/Python)
-    ↓
-DynamoDB / RDS
-    ↓
-CloudWatch (Logging & Monitoring)
+  ↓
+Lambda Function
+  ↓
+S3 Bucket (stores JSON files)
 ```
 
-**Data Format**: The wearable sends a complete `report.json` file containing:
-- Session metadata (userId, deviceId, timestamps)
-- Array of tremor events with sensor data
-- Array of freeze predictions with confidence scores
+## What Gets Sent
 
-See the main README.md for the complete JSON structure.
+Every 5 minutes, the watch sends the complete `report.json` file containing:
 
-## Prerequisites
+```json
+{
+  "sessionId": "SESSION_1234567890",
+  "userId": "USER_ABC",
+  "deviceId": "DEVICE_XYZ",
+  "sessionStart": 1234567890000,
+  "sessionEnd": 1234567890000,
+  "totalTremors": 5,
+  "totalFreezes": 2,
+  "tremors": [
+    {
+      "severity": 6.5,
+      "duration": 2000,
+      "timestamp": 1234567890000,
+      "accelerometerData": [...],
+      "gyroscopeData": [...]
+    }
+  ],
+  "freezePredictions": [
+    {
+      "probability": 0.85,
+      "confidence": 0.92,
+      "timestamp": 1234567890000,
+      "indicators": {
+        "tremor": true,
+        "gaitDisturbance": true,
+        "stressSpike": false
+      }
+    }
+  ],
+  "lastUpdated": 1234567890000
+}
+```
 
-- AWS Account with appropriate permissions
-- AWS CLI installed and configured
-- Basic knowledge of Lambda and API Gateway
+## Setup Steps
 
-## Step 1: Create DynamoDB Tables (Recommended)
-
-### Table 1: TremorReports
+### 1. Create S3 Bucket (5 minutes)
 
 ```bash
-aws dynamodb create-table \
-    --table-name TremorReports \
-    --attribute-definitions \
-        AttributeName=userId,AttributeType=S \
-        AttributeName=timestamp,AttributeType=N \
-    --key-schema \
-        AttributeName=userId,KeyType=HASH \
-        AttributeName=timestamp,KeyType=RANGE \
-    --billing-mode PAY_PER_REQUEST \
-    --region us-east-1
+aws s3 mb s3://parkinson-reports-YOUR-NAME --region us-east-1
 ```
 
-### Table 2: FreezePredictions
+### 2. Create Lambda Function (10 minutes)
 
-```bash
-aws dynamodb create-table \
-    --table-name FreezePredictions \
-    --attribute-definitions \
-        AttributeName=userId,AttributeType=S \
-        AttributeName=timestamp,AttributeType=N \
-    --key-schema \
-        AttributeName=userId,KeyType=HASH \
-        AttributeName=timestamp,KeyType=RANGE \
-    --billing-mode PAY_PER_REQUEST \
-    --region us-east-1
-```
-
-### Table 3: MonitoringSessions
-
-```bash
-aws dynamodb create-table \
-    --table-name MonitoringSessions \
-    --attribute-definitions \
-        AttributeName=userId,AttributeType=S \
-        AttributeName=sessionStart,AttributeType=N \
-    --key-schema \
-        AttributeName=userId,KeyType=HASH \
-        AttributeName=sessionStart,KeyType=RANGE \
-    --billing-mode PAY_PER_REQUEST \
-    --region us-east-1
-```
-
-## Step 2: Create Lambda Functions
-
-### Lambda 1: Tremor Report Handler
-
-**Function Name**: `parkinson-tremor-report`
+**Function Name**: `parkinson-upload-report`
 
 **Runtime**: Node.js 18.x or Python 3.11
 
-**Example Code (Node.js)**:
+**Code (Node.js)**:
 
 ```javascript
 const AWS = require('aws-sdk');
-const dynamodb = new AWS.DynamoDB.DocumentClient();
+const s3 = new AWS.S3();
 
 exports.handler = async (event) => {
     try {
-        const body = JSON.parse(event.body);
-        const { userId, deviceId, tremors, timestamp } = body;
+        // Parse the incoming report
+        const report = JSON.parse(event.body);
         
-        // Validate input
-        if (!userId || !tremors || tremors.length === 0) {
+        // Validate required fields
+        if (!report.sessionId || !report.userId || !report.deviceId) {
             return {
                 statusCode: 400,
                 headers: {
@@ -105,29 +90,32 @@ exports.handler = async (event) => {
                 },
                 body: JSON.stringify({
                     success: false,
-                    message: 'Invalid input'
+                    message: 'Missing required fields'
                 })
             };
         }
         
-        // Store each tremor event
-        const promises = tremors.map(tremor => {
-            return dynamodb.put({
-                TableName: 'TremorReports',
-                Item: {
-                    userId,
-                    timestamp: tremor.timestamp,
-                    deviceId,
-                    severity: tremor.severity,
-                    duration: tremor.duration,
-                    reportTimestamp: timestamp,
-                    accelerometerData: JSON.stringify(tremor.accelerometerData),
-                    gyroscopeData: JSON.stringify(tremor.gyroscopeData)
-                }
-            }).promise();
-        });
+        // Generate filename: userId_sessionId_timestamp.json
+        const timestamp = Date.now();
+        const filename = `${report.userId}/${report.sessionId}_${timestamp}.json`;
         
-        await Promise.all(promises);
+        // Upload to S3
+        await s3.putObject({
+            Bucket: 'parkinson-reports-YOUR-NAME',
+            Key: filename,
+            Body: JSON.stringify(report, null, 2),
+            ContentType: 'application/json',
+            Metadata: {
+                userId: report.userId,
+                deviceId: report.deviceId,
+                sessionId: report.sessionId,
+                tremorCount: String(report.totalTremors || 0),
+                freezeCount: String(report.totalFreezes || 0)
+            }
+        }).promise();
+        
+        console.log(`Saved report: ${filename}`);
+        console.log(`Tremors: ${report.totalTremors}, Freezes: ${report.totalFreezes}`);
         
         return {
             statusCode: 200,
@@ -137,8 +125,8 @@ exports.handler = async (event) => {
             },
             body: JSON.stringify({
                 success: true,
-                reportId: `TREMOR_${Date.now()}`,
-                message: `Stored ${tremors.length} tremor events`
+                message: 'Report uploaded successfully',
+                filename: filename
             })
         };
         
@@ -152,14 +140,97 @@ exports.handler = async (event) => {
             },
             body: JSON.stringify({
                 success: false,
-                message: 'Internal server error'
+                message: 'Internal server error',
+                error: error.message
             })
         };
     }
 };
 ```
 
-**IAM Role**: Attach policy with DynamoDB write permissions
+**Code (Python 3.11)**:
+
+```python
+import json
+import boto3
+from datetime import datetime
+
+s3 = boto3.client('s3')
+BUCKET_NAME = 'parkinson-reports-YOUR-NAME'
+
+def lambda_handler(event, context):
+    try:
+        # Parse incoming report
+        report = json.loads(event['body'])
+        
+        # Validate required fields
+        if not all(k in report for k in ['sessionId', 'userId', 'deviceId']):
+            return {
+                'statusCode': 400,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps({
+                    'success': False,
+                    'message': 'Missing required fields'
+                })
+            }
+        
+        # Generate filename
+        timestamp = int(datetime.now().timestamp() * 1000)
+        filename = f"{report['userId']}/{report['sessionId']}_{timestamp}.json"
+        
+        # Upload to S3
+        s3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=filename,
+            Body=json.dumps(report, indent=2),
+            ContentType='application/json',
+            Metadata={
+                'userId': report['userId'],
+                'deviceId': report['deviceId'],
+                'sessionId': report['sessionId'],
+                'tremorCount': str(report.get('totalTremors', 0)),
+                'freezeCount': str(report.get('totalFreezes', 0))
+            }
+        )
+        
+        print(f"Saved report: {filename}")
+        print(f"Tremors: {report.get('totalTremors', 0)}, Freezes: {report.get('totalFreezes', 0)}")
+        
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                'success': True,
+                'message': 'Report uploaded successfully',
+                'filename': filename
+            })
+        }
+        
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return {
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            'body': json.dumps({
+                'success': False,
+                'message': 'Internal server error',
+                'error': str(e)
+            })
+        }
+```
+
+**IAM Role Permissions**:
+
+Attach this policy to the Lambda execution role:
 
 ```json
 {
@@ -168,10 +239,10 @@ exports.handler = async (event) => {
         {
             "Effect": "Allow",
             "Action": [
-                "dynamodb:PutItem",
-                "dynamodb:UpdateItem"
+                "s3:PutObject",
+                "s3:PutObjectAcl"
             ],
-            "Resource": "arn:aws:dynamodb:*:*:table/TremorReports"
+            "Resource": "arn:aws:s3:::parkinson-reports-YOUR-NAME/*"
         },
         {
             "Effect": "Allow",
@@ -186,362 +257,236 @@ exports.handler = async (event) => {
 }
 ```
 
-### Lambda 2: Freeze Alert Handler
+### 3. Create API Gateway (10 minutes)
 
-**Function Name**: `parkinson-freeze-alert`
-
-**Example Code (Node.js)**:
-
-```javascript
-const AWS = require('aws-sdk');
-const dynamodb = new AWS.DynamoDB.DocumentClient();
-const sns = new AWS.SNS(); // Optional: for notifications
-
-exports.handler = async (event) => {
-    try {
-        const body = JSON.parse(event.body);
-        const { userId, deviceId, prediction, timestamp } = body;
-        
-        // Store prediction
-        await dynamodb.put({
-            TableName: 'FreezePredictions',
-            Item: {
-                userId,
-                timestamp: prediction.timestamp,
-                deviceId,
-                probability: prediction.probability,
-                timeToFreeze: prediction.timeToFreeze,
-                confidence: prediction.confidence,
-                indicators: prediction.indicators,
-                alertTimestamp: timestamp
-            }
-        }).promise();
-        
-        // Optional: Send notification to caregiver/doctor
-        if (prediction.probability > 0.8) {
-            await sns.publish({
-                TopicArn: 'arn:aws:sns:REGION:ACCOUNT:ParkinsonAlerts',
-                Subject: 'High Risk Freeze Alert',
-                Message: `User ${userId}: Freeze probability ${(prediction.probability * 100).toFixed(0)}%`
-            }).promise();
-        }
-        
-        return {
-            statusCode: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            body: JSON.stringify({
-                success: true,
-                alertId: `FREEZE_${Date.now()}`,
-                message: 'Freeze alert recorded'
-            })
-        };
-        
-    } catch (error) {
-        console.error('Error:', error);
-        return {
-            statusCode: 500,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            body: JSON.stringify({
-                success: false,
-                message: 'Internal server error'
-            })
-        };
-    }
-};
-```
-
-### Lambda 3: Data Sync Handler
-
-**Function Name**: `parkinson-sync-data`
-
-**Purpose**: Receives the complete `report.json` file from the wearable device
-
-**Example Code (Node.js)**:
-
-```javascript
-const AWS = require('aws-sdk');
-const dynamodb = new AWS.DynamoDB.DocumentClient();
-
-exports.handler = async (event) => {
-    try {
-        // Parse the report.json content
-        const report = JSON.parse(event.body);
-        const { sessionId, userId, deviceId, sessionStart, sessionEnd, 
-                totalTremors, totalFreezes, tremors, freezePredictions } = report;
-        
-        // Store session summary
-        await dynamodb.put({
-            TableName: 'MonitoringSessions',
-            Item: {
-                userId,
-                sessionStart,
-                sessionEnd,
-                sessionId,
-                deviceId,
-                duration: sessionEnd - sessionStart,
-                totalTremors,
-                totalFreezes,
-                syncTimestamp: Date.now()
-            }
-        }).promise();
-        
-        // Store detailed tremor data
-        const tremorPromises = tremors.map(tremor => {
-            return dynamodb.put({
-                TableName: 'TremorReports',
-                Item: {
-                    userId,
-                    timestamp: tremor.timestamp,
-                    deviceId,
-                    severity: tremor.severity,
-                    duration: tremor.duration,
-                    source: 'batch_sync',
-                    accelerometerData: JSON.stringify(tremor.accelerometerData),
-                    gyroscopeData: JSON.stringify(tremor.gyroscopeData)
-                }
-            }).promise();
-        });
-        
-        // Store prediction data
-        const predictionPromises = freezePredictions.map(prediction => {
-            return dynamodb.put({
-                TableName: 'FreezePredictions',
-                Item: {
-                    userId,
-                    timestamp: prediction.timestamp,
-                    deviceId,
-                    probability: prediction.probability,
-                    confidence: prediction.confidence,
-                    indicators: prediction.indicators,
-                    source: 'batch_sync'
-                }
-            }).promise();
-        });
-        
-        await Promise.all([...tremorPromises, ...predictionPromises]);
-        
-        return {
-            statusCode: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            body: JSON.stringify({
-                success: true,
-                syncId: `SYNC_${Date.now()}`,
-                message: 'Data synchronized successfully'
-            })
-        };
-        
-    } catch (error) {
-        console.error('Error:', error);
-        return {
-            statusCode: 500,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
-            body: JSON.stringify({
-                success: false,
-                message: 'Internal server error'
-            })
-        };
-    }
-};
-```
-
-## Step 3: Create API Gateway
-
-### Using AWS Console:
-
-1. **Create REST API**
+1. **Create REST API**:
    - Go to API Gateway console
    - Create new REST API
-   - Name: `ParkinsonMonitoringAPI`
+   - Name: `ParkinsonReportAPI`
 
-2. **Create Resources and Methods**
+2. **Create Resource**:
+   - Create resource: `/upload-report`
 
-   **Resource**: `/tremor-report`
-   - Method: `POST`
-   - Integration: Lambda Function
-   - Lambda: `parkinson-tremor-report`
-   - Enable CORS
+3. **Create POST Method**:
+   - Add POST method to `/upload-report`
+   - Integration type: Lambda Function
+   - Select your `parkinson-upload-report` function
+   - Enable Lambda Proxy integration
 
-   **Resource**: `/freeze-alert`
-   - Method: `POST`
-   - Integration: Lambda Function
-   - Lambda: `parkinson-freeze-alert`
-   - Enable CORS
+4. **Enable CORS**:
+   - Select `/upload-report` resource
+   - Actions → Enable CORS
+   - Accept defaults
 
-   **Resource**: `/sync-data`
-   - Method: `POST`
-   - Integration: Lambda Function
-   - Lambda: `parkinson-sync-data`
-   - Enable CORS
+5. **Deploy API**:
+   - Actions → Deploy API
+   - Stage: `prod`
+   - Note your API endpoint URL
 
-3. **Deploy API**
-   - Create deployment stage: `prod`
-   - Note the invoke URL: `https://YOUR-API-ID.execute-api.REGION.amazonaws.com/prod`
+### 4. Configure Watch App (2 minutes)
 
-### Using AWS CLI:
-
-```bash
-# Create API
-aws apigateway create-rest-api --name ParkinsonMonitoringAPI --region us-east-1
-
-# Get API ID from output, then create resources
-# (Full CLI setup is lengthy, use console for easier setup)
-```
-
-## Step 4: Configure Authentication (Recommended)
-
-### Option 1: API Key
-
-```bash
-# Create API key
-aws apigateway create-api-key \
-    --name ParkinsonWearableKey \
-    --enabled \
-    --region us-east-1
-
-# Create usage plan
-aws apigateway create-usage-plan \
-    --name ParkinsonBasicPlan \
-    --throttle burstLimit=100,rateLimit=50 \
-    --quota limit=10000,period=DAY \
-    --region us-east-1
-
-# Associate API key with usage plan
-```
-
-### Option 2: Cognito User Pool (Better for production)
-
-1. Create Cognito User Pool
-2. Configure API Gateway to use Cognito authorizer
-3. Update wearable app to authenticate users
-
-## Step 5: Update Wearable App Configuration
-
-After deploying, update `entry/src/main/ets/config/AppConfig.ets`:
+Update `entry/src/main/ets/config/AppConfig.ets`:
 
 ```typescript
-static readonly TREMOR_REPORT_ENDPOINT = 'https://abc123xyz.execute-api.us-east-1.amazonaws.com/prod/tremor-report';
-static readonly FREEZE_ALERT_ENDPOINT = 'https://abc123xyz.execute-api.us-east-1.amazonaws.com/prod/freeze-alert';
-static readonly SYNC_DATA_ENDPOINT = 'https://abc123xyz.execute-api.us-east-1.amazonaws.com/prod/sync-data';
-static readonly AWS_REGION = 'us-east-1';
+// Replace with your actual API Gateway endpoint
+static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API-ID.execute-api.us-east-1.amazonaws.com/prod/upload-report';
+
+// These are not used anymore - can be set to empty string or same as SYNC_DATA_ENDPOINT
+static readonly TREMOR_REPORT_ENDPOINT = '';
+static readonly FREEZE_ALERT_ENDPOINT = '';
 ```
 
-And in `APIService.ets`, add your API key:
+## How It Works
+
+### Watch Behavior
+
+1. **Every 5 minutes** (configurable in `AppConfig.DATA_SYNC_INTERVAL_MS`):
+   - Watch reads `report.json` file
+   - Sends complete file to AWS via HTTPS POST
+   - Waits for success response
+
+2. **If upload succeeds** AND `CLEAR_DATA_AFTER_SYNC = true`:
+   - Clears `tremors` array
+   - Clears `freezePredictions` array
+   - Keeps session metadata (userId, deviceId, counts)
+   - File is now empty but ready for new events
+
+3. **If upload fails**:
+   - Data remains in file
+   - Will retry in 5 minutes
+   - New events continue to accumulate
+
+### AWS Behavior
+
+1. **Receives JSON file**
+2. **Saves to S3** with organized path: `s3://bucket/USER_ID/SESSION_ID_timestamp.json`
+3. **Returns success** to watch
+4. **Files are timestamped** - can track patient history over time
+
+### Viewing Your Data
+
+Access your reports:
+
+```bash
+# List all reports for a user
+aws s3 ls s3://parkinson-reports-YOUR-NAME/USER_ABC/
+
+# Download a specific report
+aws s3 cp s3://parkinson-reports-YOUR-NAME/USER_ABC/SESSION_123_456.json ./report.json
+
+# Download all reports for a user
+aws s3 sync s3://parkinson-reports-YOUR-NAME/USER_ABC/ ./reports/
+```
+
+Or use AWS Console → S3 → Browse your bucket
+
+## File Locations
+
+### On Watch (HarmonyOS Device)
+
+**File Path**: `/data/storage/el2/base/haps/entry/files/report.json`
+
+- This is the internal app storage directory
+- Accessible only to your app
+- Persists across app restarts
+- **Size**: Grows until uploaded and cleared (typically < 1 MB)
+
+You can view logs to see the exact path:
+```
+hilog | grep ReportLogger
+```
+
+Look for: `Report file path: /data/storage/.../report.json`
+
+### On Development Machine (Preview/Emulator)
+
+**File Path**: Varies by simulator, but similar structure
+
+To find it:
+1. Check DevEco Studio logs when app starts
+2. Look for `ReportLogger` log line showing file path
+3. Or check: `~/.deveco-studio/system/emulator/[device]/data/...`
+
+**Note**: For local testing, the file exists but won't actually upload to AWS unless you provide real endpoints.
+
+### In AWS (After Upload)
+
+**S3 Path**: `s3://parkinson-reports-YOUR-NAME/USER_ID/SESSION_ID_timestamp.json`
+
+Example:
+```
+s3://parkinson-reports-john/
+  └── USER_1732233600000/
+      ├── SESSION_1732233600000_1732233900000.json
+      ├── SESSION_1732233600000_1732234200000.json
+      └── SESSION_1732233600000_1732234500000.json
+```
+
+## Testing Your Setup
+
+### 1. Test Lambda Function
+
+Use AWS Console → Lambda → Test with this event:
+
+```json
+{
+  "body": "{\"sessionId\":\"SESSION_TEST\",\"userId\":\"USER_TEST\",\"deviceId\":\"DEVICE_TEST\",\"sessionStart\":1732233600000,\"sessionEnd\":1732233900000,\"totalTremors\":2,\"totalFreezes\":1,\"tremors\":[{\"severity\":5.5,\"duration\":1500,\"timestamp\":1732233700000,\"accelerometerData\":[],\"gyroscopeData\":[]}],\"freezePredictions\":[{\"probability\":0.75,\"confidence\":0.88,\"timestamp\":1732233800000,\"indicators\":{\"tremor\":true,\"gaitDisturbance\":false,\"stressSpike\":false}}],\"lastUpdated\":1732233900000}"
+}
+```
+
+Expected response: `statusCode: 200` with success message
+
+### 2. Check S3 Bucket
+
+```bash
+aws s3 ls s3://parkinson-reports-YOUR-NAME/USER_TEST/
+```
+
+You should see a JSON file created.
+
+### 3. Test from Watch
+
+1. Deploy app to watch
+2. Start monitoring
+3. Wait 5 minutes (or change `DATA_SYNC_INTERVAL_MS` to 60000 for testing = 1 minute)
+4. Check CloudWatch logs for your Lambda
+5. Check S3 bucket for uploaded file
+
+## Configuration Options
+
+### Change Upload Frequency
+
+In `AppConfig.ets`:
 
 ```typescript
-const headers = {
-  'Content-Type': 'application/json',
-  'Accept': 'application/json',
-  'X-API-Key': 'YOUR_API_KEY_HERE',
-};
+static readonly DATA_SYNC_INTERVAL_MS = 300000; // 5 minutes (default)
+static readonly DATA_SYNC_INTERVAL_MS = 60000;  // 1 minute (for testing)
+static readonly DATA_SYNC_INTERVAL_MS = 600000; // 10 minutes (battery saving)
 ```
 
-## Step 6: Test the Setup
+### Control Data Clearing
 
-### Test with curl:
+In `AppConfig.ets`:
 
-```bash
-# Test tremor report endpoint
-curl -X POST https://YOUR-API-ID.execute-api.us-east-1.amazonaws.com/prod/tremor-report \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -d '{
-    "userId": "test_user",
-    "deviceId": "test_device",
-    "tremors": [{
-      "severity": 5.5,
-      "duration": 2000,
-      "timestamp": 1234567890,
-      "accelerometerData": [],
-      "gyroscopeData": []
-    }],
-    "timestamp": 1234567890
-  }'
+```typescript
+static readonly CLEAR_DATA_AFTER_SYNC = true;  // Clear after upload (default)
+static readonly CLEAR_DATA_AFTER_SYNC = false; // Keep all data (for debugging)
 ```
-
-## Step 7: Monitor and Debug
-
-### CloudWatch Logs
-
-- Each Lambda function has a log group: `/aws/lambda/FUNCTION_NAME`
-- Monitor for errors and performance
-
-### X-Ray (Optional)
-
-Enable AWS X-Ray for distributed tracing:
-
-```bash
-aws lambda update-function-configuration \
-    --function-name parkinson-tremor-report \
-    --tracing-config Mode=Active
-```
-
-## Cost Estimation
-
-**Free Tier (First 12 months):**
-- Lambda: 1M free requests/month
-- DynamoDB: 25 GB storage
-- API Gateway: 1M API calls/month
-
-**Expected Monthly Cost (after free tier):**
-- Lambda: ~$0.20 (for 1 user with 1000 syncs/month)
-- DynamoDB: ~$1.25 (for 1 GB storage)
-- API Gateway: ~$3.50 (for 1M requests)
-- **Total**: ~$5/month per user
-
-## Security Best Practices
-
-1. **Enable encryption at rest** for DynamoDB
-2. **Use HTTPS only** for API Gateway
-3. **Implement authentication** (Cognito/API keys)
-4. **Enable CloudTrail** for audit logging
-5. **Set up CloudWatch alarms** for anomalies
-6. **Use VPC** for Lambda if processing PHI
-7. **Implement rate limiting** on API Gateway
-8. **Regular security audits** with AWS Trusted Advisor
-
-## Additional Features to Consider
-
-1. **SNS notifications** for high-risk alerts
-2. **S3 storage** for raw sensor data archives
-3. **QuickSight dashboards** for doctor visualization
-4. **Step Functions** for complex workflows
-5. **EventBridge** for scheduled data processing
-6. **SageMaker** for ML model training and hosting
 
 ## Troubleshooting
 
-### Lambda timeout
-- Increase timeout in Lambda configuration (default 3s → 30s)
+### "Failed to sync report" in logs
 
-### CORS errors
-- Enable CORS in API Gateway for all methods
-- Add proper headers in Lambda responses
+**Check**:
+1. Is `SYNC_DATA_ENDPOINT` correctly set in `AppConfig.ets`?
+2. Does the watch have internet connection?
+3. Is the Lambda function deployed and working?
+4. Check CloudWatch logs for Lambda errors
 
-### DynamoDB throttling
-- Switch to on-demand billing mode
-- Or increase provisioned capacity
+### File not found on watch
 
-### Cold starts
-- Enable provisioned concurrency for Lambda
-- Or use reserved concurrency
+**Check**:
+1. Has `MonitoringService.initialize(context)` been called?
+2. Check logs for "Report file path:" message
+3. Is monitoring started? (`startMonitoring()` called)
+4. Have any events occurred? (tremors or freezes logged)
+
+### S3 file empty or missing
+
+**Check**:
+1. Lambda logs in CloudWatch - was function invoked?
+2. Check Lambda IAM role has S3 write permissions
+3. Verify bucket name matches in both Lambda code and S3
+
+### "Invalid input" error
+
+**Check**:
+- Report JSON has required fields: `sessionId`, `userId`, `deviceId`
+- JSON is valid format
+- Content-Type header is set correctly
+
+## Cost Estimate
+
+For 1 user with continuous monitoring:
+
+- **Lambda invocations**: 288/day × 30 days = 8,640/month (within free tier: 1M requests)
+- **Lambda compute**: ~100ms × 8,640 = ~864 seconds (within free tier: 400,000 seconds)
+- **S3 storage**: ~1 KB × 8,640 files = ~8.6 MB/month (< $0.01)
+- **S3 requests**: 8,640 PUT requests/month (~$0.05)
+
+**Total cost**: < $0.10/month per user (mostly free tier)
 
 ## Next Steps
 
-1. Deploy Lambda functions and API Gateway
-2. Set up DynamoDB tables
-3. Configure authentication
-4. Test endpoints with curl/Postman
-5. Update wearable app configuration
-6. Deploy to production with monitoring
+1. **Set up monitoring**: Use CloudWatch to track Lambda invocations and errors
+2. **Add data processing**: Create another Lambda triggered by S3 uploads to process/analyze reports
+3. **Build dashboard**: Use reports to visualize patient trends over time
+4. **Add notifications**: Alert doctors when concerning patterns detected
+
+## Support
+
+If you encounter issues:
+1. Check CloudWatch logs for Lambda function
+2. Verify API Gateway endpoints are deployed
+3. Test Lambda directly with sample JSON
+4. Check watch logs for network errors

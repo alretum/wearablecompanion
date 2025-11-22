@@ -179,8 +179,14 @@ export class SensorManager {
    * Expected values when stationary: close to 0 on all axes.
    * If you see ~9.8 m/s² on any axis, gravity is NOT being removed properly.
    * 
-   * WORKAROUND: We manually calibrate and subtract gravity for devices where
-   * LINEAR_ACCELEROMETER doesn't work properly.
+   * CURRENT SOLUTION: Manual compensation is DISABLED by default because it can cause
+   * instability. Instead, collect raw data and process it offline with proper signal
+   * processing (low-pass filter to extract gravity, high-pass filter for motion).
+   * 
+   * For data analysis:
+   * - Apply low-pass filter (e.g., 0.3 Hz cutoff) to isolate gravity component
+   * - Apply high-pass filter (e.g., 0.3 Hz cutoff) to isolate motion component
+   * - Or use complementary filter combining accelerometer + gyroscope data
    */
   private startAccelerometer(): void {
     try {

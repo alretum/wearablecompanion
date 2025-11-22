@@ -48,6 +48,8 @@ export class AppConfig {
   static readonly ENABLE_FREEZE_DETECTION = false; // Set to false to disable freeze prediction algorithm
   
   // Sensor calibration
-  static readonly ENABLE_MANUAL_GRAVITY_COMPENSATION = true; // Set to true if LINEAR_ACCELEROMETER doesn't remove gravity properly
-  static readonly CALIBRATION_SAMPLES = 20; // Number of samples to average for gravity calibration (keep device still during startup)
+  // NOTE: Disable this if LINEAR_ACCELEROMETER gives unstable readings or if you want raw data
+  // When disabled, you'll get the sensor's raw output (which may include gravity if LINEAR_ACCELEROMETER doesn't work)
+  static readonly ENABLE_MANUAL_GRAVITY_COMPENSATION = false; // DISABLED - causing instability, process data offline instead
+  static readonly CALIBRATION_SAMPLES = 50; // Increased for more stable calibration (use 50+ samples)
 }

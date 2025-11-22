@@ -30,6 +30,18 @@ interface HttpResponseData {
   message?: string;
 }
 
+export interface ConnectivityResults {
+  tremorReport: boolean;
+  freezeAlert: boolean;
+  syncData: boolean;
+}
+
+interface EndpointMap {
+  tremorReport: string;
+  freezeAlert: string;
+  syncData: string;
+}
+
 export interface TremorReportPayload {
   userId: string; // TODO: Add user authentication
   deviceId: string;
@@ -157,8 +169,8 @@ export class APIService {
    */
   public async syncReportFile(reportJSON: string): Promise<boolean> {
     try {
-      const report = JSON.parse(reportJSON);
-      hilog.info(DOMAIN, TAG, `Uploading report: ${report.tremors?.length || 0} tremors, ${report.freezePredictions?.length || 0} predictions`);
+      const report = JSON.parse(reportJSON) as Object;
+      hilog.info(DOMAIN, TAG, `Uploading report file`);
       
       const response = await this.sendRequest(
         AppConfig.SYNC_DATA_ENDPOINT,

@@ -11,7 +11,7 @@
 import { SensorManager } from '../sensors/SensorManager';
 import { PredictionAlgorithm } from '../algorithms/PredictionAlgorithm';
 import { TremorDetector } from '../algorithms/TremorDetector';
-import { APIService } from '../connectivity/APIService';
+import { APIService, ConnectivityResults } from '../connectivity/APIService';
 import { ReportLogger } from './ReportLogger';
 import { 
   AppState, 
@@ -30,8 +30,8 @@ import { common } from '@kit.AbilityKit';
 const DOMAIN = 0x0005;
 const TAG = 'MonitoringService';
 
-interface VibrateOptions {
-  type: string;
+interface VibrateTime {
+  type: 'time';
   duration: number;
 }
 
@@ -269,15 +269,13 @@ export class MonitoringService {
   private alertUser(): void {
     if (AppConfig.ENABLE_VIBRATION_ALERT) {
       try {
-        // Short vibration pattern: 200ms on, 100ms off, 200ms on
-        const vibrateOptions: VibrateOptions = {
+        // Short vibration pattern: 500ms vibration
+        const vibrateEffect: VibrateTime = {
           type: 'time',
           duration: 500
         };
-        vibrator.startVibration(vibrateOptions, (error: Error) => {
-          if (error) {
-            hilog.error(DOMAIN, TAG, `Vibration failed: ${error}`);
-          }
+        vibrator.startVibration(vibrateEffect, {
+          usage: 'alarm'
         });
       } catch (error) {
         hilog.error(DOMAIN, TAG, `Vibration failed: ${error}`);
@@ -362,7 +360,7 @@ export class MonitoringService {
   /**
    * Test API connectivity
    */
-  public async testAPIConnectivity(): Promise<{ [key: string]: boolean }> {
+  public async testAPIConnectivity(): Promise<ConnectivityResults> {
     return this.apiService.testConnectivity();
   }
 

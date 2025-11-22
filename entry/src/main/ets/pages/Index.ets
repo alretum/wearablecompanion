@@ -274,22 +274,20 @@ struct Index {
 
   @Builder
   ReportInfoContent() {
-    const reportLogger = this.monitoringService.getReportLogger();
-    if (reportLogger) {
-      const report = reportLogger.getReport();
-      if (report) {
+    if (this.monitoringService.getReportLogger()) {
+      if (this.monitoringService.getReportLogger()!.getReport()) {
         Column() {
-          Text(`Session: ${report.sessionId}`)
+          Text(`Session: ${this.monitoringService.getReportLogger()!.getReport()!.sessionId}`)
             .fontSize(10)
             .fontColor('#666')
             .margin({ bottom: 4 })
           
-          Text(`Logged: ${report.tremors.length} tremors, ${report.freezePredictions.length} predictions`)
+          Text(`Logged: ${this.monitoringService.getReportLogger()!.getReport()!.tremors.length} tremors, ${this.monitoringService.getReportLogger()!.getReport()!.freezePredictions.length} predictions`)
             .fontSize(11)
             .fontColor('#333')
             .margin({ bottom: 4 })
           
-          Text(`File size: ${(reportLogger.getReportSize() / 1024).toFixed(2)} KB`)
+          Text(`File size: ${(this.monitoringService.getReportLogger()!.getReportSize() / 1024).toFixed(2)} KB`)
             .fontSize(10)
             .fontColor('#666')
         }

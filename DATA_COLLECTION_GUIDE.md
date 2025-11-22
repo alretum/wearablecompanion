@@ -48,14 +48,17 @@ This branch enables complete data collection mode, logging **all sensor readings
 
 ### 2. Processed Events
 
-**Tremor Events**:
+**Tremor/Activity Events**:
 ```typescript
 {
-  severity: number,   // 0-10 scale
-  duration: number,   // milliseconds
-  timestamp: number   // Unix timestamp in ms
+  status: 'sedentary' | 'active' | 'unknown' | 'not_worn',  // Activity classification
+  magnitude: number,      // Motion magnitude (m/s²)
+  frequency: number,      // Dominant frequency (Hz), 0 if not detected
+  timestamp: number       // Unix timestamp in ms
 }
 ```
+
+**Note**: Tremor/activity data is included in heart rate reports (sent every 5 minutes), NOT in separate incident reports.
 
 **Freeze Predictions**:
 ```typescript
@@ -153,9 +156,11 @@ The DataCollectionLogger implements automatic memory management:
 
 - Accelerometer/Gyroscope: Saves every 100 readings (~2 seconds)
 - Heart Rate: Saves immediately on each reading
-- Tremor Events: Saves immediately
+- Tremor/Activity Events: Saves immediately
 - Freeze Predictions: Saves immediately
 - GPS: Saves immediately
+
+**Note on Data Reporting**: While the data collection logger saves tremor events locally, tremor/activity data is transmitted to the server as part of the 5-minute heart rate report, not as separate incident reports.
 
 ## Data Collection Report Structure
 
@@ -188,8 +193,18 @@ Complete JSON structure:
   ],
   
   "tremorEvents": [
-    {"severity": 6.5, "duration": 2000, "timestamp": 1732233650000},
-    {"severity": 7.2, "duration": 1500, "timestamp": 1732233680000}
+    {
+      "status": "active",
+      "magnitude": 1.2,
+      "frequency": 5.3,
+      "timestamp": 1732233650000
+    },
+    {
+      "status": "sedentary",
+      "magnitude": 0.3,
+      "frequency": 0,
+      "timestamp": 1732233680000
+    }
   ],
   
   "freezePredictions": [
@@ -253,7 +268,7 @@ You'll see:
 - `Accelerometer: 100 readings`
 - `Gyroscope: 100 readings`
 - `Heart rate: 72 BPM`
-- `Tremor logged: severity=6.50, total=1`
+- `Activity logged: status=active, magnitude=1.20, total=1`
 - `Freeze logged: probability=0.85, total=1`
 
 ### 3. View Statistics

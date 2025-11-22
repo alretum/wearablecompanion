@@ -434,7 +434,7 @@ struct Index {
             .fontColor('#8E8E93')
             .margin({ bottom: 6 })
           
-          Text(`${this.monitoringService.getReportLogger()!.getReport()!.tremors.length} tremors, ${this.monitoringService.getReportLogger()!.getReport()!.freezePredictions.length} predictions logged`)
+          Text(`${this.monitoringService.getReportLogger()!.getReport()!.freezePredictions.length} freeze predictions logged`)
             .fontSize(12)
             .fontColor('#3C3C43')
             .fontWeight(FontWeight.Medium)

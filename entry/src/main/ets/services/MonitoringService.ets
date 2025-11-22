@@ -342,7 +342,7 @@ export class MonitoringService {
 
   /**
    * Handle detected tremor/activity data
-   * Tremor data is now included in the 5-minute heart rate report
+   * Tremor data is included in the 5-minute heart rate report
    */
   private handleTremorDetected(tremor: TremorEvent): void {
     hilog.info(DOMAIN, TAG, `Activity detected: status=${tremor.status}, magnitude=${tremor.magnitude.toFixed(2)}, frequency=${tremor.frequency.toFixed(2)}Hz`);
@@ -358,8 +358,8 @@ export class MonitoringService {
       this.dataCollectionLogger?.logTremor(tremor);
     }
     
-    // NOTE: Tremor data is no longer sent separately
-    // It's now included in the periodic heart rate report every 5 minutes
+    // NOTE: Tremor data is NOT sent to incident reports
+    // It's included in the periodic heart rate report every 5 minutes
     
     this.notifyStateChange();
   }
@@ -532,6 +532,8 @@ export class MonitoringService {
 
   /**
    * Sync data to server
+   * Only freeze incidents are sent via this method
+   * Tremor data is sent as part of heart rate reports
    */
   private syncDataToServer(): void {
     if (!this.reportLogger) {

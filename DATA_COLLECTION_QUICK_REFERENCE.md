@@ -66,7 +66,8 @@ hilog | grep "Data collection file path"
   // Last 500 heart rate readings (~8 minutes at 1 Hz)
   "heartRateData": [...],
   
-  // All detected tremor events
+  // All detected tremor/activity events
+  // Note: Also included in 5-minute heart rate reports
   "tremorEvents": [...],
   
   // All freeze predictions with GPS coordinates
@@ -162,7 +163,7 @@ DataCollectionLogger: Data collection initialized
 DataCollectionLogger: Accelerometer: 100 readings
 DataCollectionLogger: Gyroscope: 100 readings
 DataCollectionLogger: Heart rate: 72 BPM
-DataCollectionLogger: Tremor logged: severity=6.50, total=1
+DataCollectionLogger: Activity logged: status=active, magnitude=1.20, total=1
 DataCollectionLogger: Freeze logged: probability=0.85, total=1
 DataCollectionLogger: GPS: 48.135100, 11.582000
 DataCollectionLogger: Collection saved: 5000 accel, 5000 gyro, 300 HR

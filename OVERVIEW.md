@@ -6,7 +6,7 @@
 
 This HarmonyOS wearable application predicts and detects Parkinson's disease symptoms in real-time:
 - **Freeze Prediction**: Warns 5 seconds before freezing of gait episodes
-- **Tremor Detection**: Identifies and measures tremor events with mock algorithms
+- **Activity Monitoring**: Tracks activity status and motion (included in heart rate reports)
 - **Cloud Reporting**: Automatically uploads patient data for medical analysis
 - **Real-time Alerts**: Vibration feedback to warn patients
 - **Always-On Monitoring**: Runs continuously by default (configurable)
@@ -137,8 +137,9 @@ This HarmonyOS wearable application predicts and detects Parkinson's disease sym
 ### 3. Local Logging (Watch)
 - **ReportLogger** writes to `report.json`
 - File location: `{app_files_dir}/report.json`
-- Contains: session metadata, tremors, freeze predictions
+- Contains: session metadata, freeze predictions only
 - Automatically managed (append, clear after upload)
+- **Note**: Tremor/activity data is sent via heart rate reports, not incident reports
 
 ### 4. Cloud Upload (Watch → AWS)
 - **Automatic sync**: Every 5 minutes
@@ -238,6 +239,8 @@ static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API-ID...';
 
 ### Local Storage: `report.json`
 
+**Note**: This file contains freeze incidents only. Tremor/activity data is transmitted as part of the 5-minute heart rate reports.
+
 ```json
 {
   "sessionId": "SESSION_1700000000000",
@@ -245,24 +248,7 @@ static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API-ID...';
   "deviceId": "DEVICE_XYZ789",
   "sessionStart": 1700000000000,
   "sessionEnd": 1700003600000,
-  "totalTremors": 12,
   "totalFreezes": 3,
-  "tremors": [
-    {
-      "severity": 6.5,
-      "duration": 2000,
-      "timestamp": 1700001000000,
-      "accelerometerData": [
-        { "x": 0.5, "y": 9.8, "z": 0.1, "timestamp": 1700001000000 },
-        // ... more readings
-      ],
-      "gyroscopeData": [
-        { "x": 0.01, "y": 0.02, "z": 0.01, "timestamp": 1700001000000 },
-        // ... more readings
-      ]
-    }
-    // ... more tremors
-  ],
   "freezePredictions": [
     {
       "probability": 0.85,
@@ -311,17 +297,17 @@ static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API-ID...';
 
 ### API Endpoints
 
-1. **POST /tremor-report**
-   - Receives individual tremor events
-   - Real-time doctor notifications
-   - Fast response for immediate alerts
+1. **POST /upload-report**
+   - Receives freeze incident reports only
+   - Includes GPS coordinates for emergency assistance
+   - Triggered when freeze events occur
 
-2. **POST /freeze-alert**
-   - Receives freeze predictions
-   - High-priority processing
-   - Optional caregiver notifications
+2. **POST /upload-heartrate**
+   - Receives 5 minutes of heart rate + tremor/activity data
+   - Each minute includes optional tremor data (status, magnitude, frequency)
+   - Triggered every 5 minutes
 
-3. **POST /sync-data**
+3. **POST /sync-data** (legacy endpoint, maps to /upload-report)
    - Receives complete `report.json`
    - Batch processing for efficiency
    - Triggered when freeze incidents occur

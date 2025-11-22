@@ -6,10 +6,10 @@
 
 This system monitors motion patterns and physiological signals in real-time to:
 - ✅ **Predict freezing episodes** 5 seconds before they occur
-- ✅ **Detect and log tremors** for medical reporting  
+- ✅ **Monitor activity and motion** (included in heart rate reports)
 - ✅ **Send real-time alerts** via vibration to warn patients
 - ✅ **Sync data to AWS cloud** for doctor review and analysis
-- ✅ **Store events locally** in `report.json` file on the watch
+- ✅ **Store freeze incidents locally** in `report.json` file on the watch
 
 ---
 
@@ -102,7 +102,7 @@ All tremors and freeze predictions are logged to local JSON files:
 
 **File Location**: `{app_files_dir}/report.json`
 
-**File Structure** (note: NO raw sensor data):
+**File Structure** (freeze incidents only):
 ```json
 {
   "sessionId": "SESSION_1234567890",
@@ -110,15 +110,7 @@ All tremors and freeze predictions are logged to local JSON files:
   "deviceId": "DEVICE_XYZ",
   "sessionStart": 1234567890000,
   "sessionEnd": 1234567890000,
-  "totalTremors": 5,
   "totalFreezes": 2,
-  "tremors": [
-    {
-      "severity": 6.5,
-      "duration": 2000,
-      "timestamp": 1234567890000
-    }
-  ],
   "freezePredictions": [
     {
       "probability": 0.85,
@@ -144,11 +136,11 @@ All tremors and freeze predictions are logged to local JSON files:
 
 **Uploaded to**: `/upload-report` endpoint when freeze events occur (no longer on fixed schedule)
 
-**Note**: GPS coordinates are automatically retrieved and included in `freezePredictions` for emergency assistance and location tracking of freeze events. GPS is only used for freeze events, not for tremors.
+**Note**: GPS coordinates are automatically retrieved and included in `freezePredictions` for emergency assistance and location tracking of freeze events. GPS is only used for freeze events.
 
 ### 2. Heart Rate Data (Aggregated per Minute)
 
-**Content**: 5 minutes of aggregated heart rate statistics
+**Content**: 5 minutes of aggregated heart rate statistics + tremor/activity data
 
 **Structure**:
 ```json
@@ -162,20 +154,29 @@ All tremors and freeze predictions are logged to local JSON files:
       "avgBpm": 72.5,
       "minBpm": 68,
       "maxBpm": 78,
-      "sampleCount": 60
+      "sampleCount": 60,
+      "tremorData": {
+        "status": "active",
+        "magnitude": 1.2,
+        "frequency": 5.3,
+        "timestamp": 1234567220000
+      }
     },
-    // ... 4 more minutes
+    // ... 4 more minutes, each with optional tremorData
   ]
 }
 ```
 
 **Uploaded to**: `/upload-heartrate` endpoint every 5 minutes
 
+**Note**: Each minute includes optional tremor/activity data with status (sedentary/active/unknown/not_worn), motion magnitude, and dominant frequency.
+
 ### Data Characteristics
 
 - **Processed Data Only**: Raw accelerometer/gyroscope data NOT stored (saves space)
-- **Continuous Logging**: All events written immediately to files
-- **5-Minute Upload**: Both files uploaded every 5 minutes
+- **Continuous Logging**: Freeze events written immediately to report.json
+- **5-Minute Upload**: Heart rate data (with tremor/activity) uploaded every 5 minutes
+- **Incident Uploads**: Freeze predictions uploaded immediately when detected
 - **Auto-Clear**: Data cleared after successful upload (if `CLEAR_DATA_AFTER_SYNC = true`)
 
 ---
@@ -185,16 +186,17 @@ All tremors and freeze predictions are logged to local JSON files:
 ### Two Separate Endpoints
 
 **Endpoint 1: `/upload-report`**
-- Receives: Processed tremor and freeze prediction data
-- Format: Complete report.json with severity, duration, probability metrics
+- Receives: Freeze prediction incidents only
+- Format: Complete report.json with probability, confidence, indicators, GPS coordinates
 - GPS: Freeze predictions include GPS coordinates for emergency location tracking
 - Storage: S3 bucket organized by userId/sessionId
 - Trigger: Sent when freeze incident occurs (not on fixed schedule)
 
 **Endpoint 2: `/upload-heartrate`**
-- Receives: 5 minutes of aggregated heart rate data (1 entry per minute)
-- Format: avgBpm, minBpm, maxBpm, sampleCount for each minute
+- Receives: 5 minutes of aggregated heart rate + tremor/activity data (1 entry per minute)
+- Format: avgBpm, minBpm, maxBpm, sampleCount, and optional tremorData (status, magnitude, frequency) for each minute
 - Storage: S3 bucket organized by userId/timestamp
+- Trigger: Sent every 5 minutes
 
 ### AWS Architecture
 ```

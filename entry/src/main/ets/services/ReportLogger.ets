@@ -1,10 +1,10 @@
 /**
- * ReportLogger - Logs tremors and freezes to a local JSON file
+ * ReportLogger - Logs freeze incidents to a local JSON file
  * This file is then uploaded to AWS for doctor review and analysis
  */
 
 import { fileIo } from '@kit.CoreFileKit';
-import { TremorEvent, FreezePrediction } from '../sensors/SensorData';
+import { FreezePrediction } from '../sensors/SensorData';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { common } from '@kit.AbilityKit';
 
@@ -17,9 +17,7 @@ export interface SessionReport {
   deviceId: string;
   sessionStart: number;
   sessionEnd: number;
-  totalTremors: number;
   totalFreezes: number;
-  tremors: TremorEvent[];
   freezePredictions: FreezePrediction[];
   lastUpdated: number;
 }
@@ -42,34 +40,12 @@ export class ReportLogger {
       deviceId: deviceId,
       sessionStart: Date.now(),
       sessionEnd: 0,
-      totalTremors: 0,
       totalFreezes: 0,
-      tremors: [],
       freezePredictions: [],
       lastUpdated: Date.now()
     };
     
     this.saveReport();
-  }
-
-  /**
-   * Log a tremor event to the report file
-   */
-  public logTremor(tremor: TremorEvent): void {
-    if (!this.currentReport) {
-      hilog.error(DOMAIN, TAG, 'No active report session');
-      return;
-    }
-
-    // Add tremor to report
-    this.currentReport.tremors.push(tremor);
-    this.currentReport.totalTremors++;
-    this.currentReport.lastUpdated = Date.now();
-
-    // Save to file
-    this.saveReport();
-    
-    hilog.info(DOMAIN, TAG, `Activity logged: status=${tremor.status}, magnitude=${tremor.magnitude.toFixed(2)}, total=${this.currentReport.totalTremors}`);
   }
 
   /**
@@ -112,7 +88,7 @@ export class ReportLogger {
       fileIo.writeSync(file.fd, jsonContent);
       fileIo.closeSync(file);
 
-      hilog.debug(DOMAIN, TAG, `Report saved: ${this.currentReport.tremors.length} tremors, ${this.currentReport.freezePredictions.length} predictions`);
+      hilog.debug(DOMAIN, TAG, `Report saved: ${this.currentReport.freezePredictions.length} predictions`);
     } catch (error) {
       hilog.error(DOMAIN, TAG, `Failed to save report: ${error}`);
     }
@@ -146,7 +122,7 @@ export class ReportLogger {
       const jsonString = String.fromCharCode(...new Uint8Array(content.slice(0, readLen)));
       const report = JSON.parse(jsonString) as SessionReport;
 
-      hilog.info(DOMAIN, TAG, `Report loaded: ${report.tremors.length} tremors, ${report.freezePredictions.length} predictions`);
+      hilog.info(DOMAIN, TAG, `Report loaded: ${report.freezePredictions.length} predictions`);
       return report;
     } catch (error) {
       hilog.error(DOMAIN, TAG, `Failed to read report: ${error}`);
@@ -180,10 +156,9 @@ export class ReportLogger {
       return;
     }
 
-    hilog.info(DOMAIN, TAG, `Clearing uploaded data: ${this.currentReport.tremors.length} tremors, ${this.currentReport.freezePredictions.length} predictions`);
+    hilog.info(DOMAIN, TAG, `Clearing uploaded data: ${this.currentReport.freezePredictions.length} predictions`);
 
     // Keep counts but clear detailed data
-    this.currentReport.tremors = [];
     this.currentReport.freezePredictions = [];
     this.currentReport.lastUpdated = Date.now();
 
@@ -206,9 +181,7 @@ export class ReportLogger {
       deviceId: this.currentReport?.deviceId || 'UNKNOWN',
       sessionStart: Date.now(),
       sessionEnd: 0,
-      totalTremors: 0,
       totalFreezes: 0,
-      tremors: [],
       freezePredictions: [],
       lastUpdated: Date.now()
     };

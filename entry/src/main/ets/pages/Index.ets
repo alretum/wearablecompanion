@@ -289,35 +289,42 @@ struct Index {
       // Latest Tremor
       if (this.appState.latestTremor !== null) {
         Row() {
-          Text('🔴')
+          Text('📊')
             .fontSize(20)
             .margin({ right: 12 })
           
           Column() {
-            Text('Tremor Detected')
+            Text('Activity Status')
               .fontSize(15)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#FF3B30')
+              .fontColor('#FF9800')
               .margin({ bottom: 4 })
             
             Row() {
-              Text(`Severity ${this.appState.latestTremor.severity.toFixed(1)}/10`)
+              Text(`${this.appState.latestTremor.status.toUpperCase()}`)
                 .fontSize(12)
                 .fontColor('#3C3C43')
                 .margin({ right: 12 })
               
-              Text(`${this.appState.latestTremor.duration}ms`)
+              Text(`${this.appState.latestTremor.magnitude.toFixed(2)} m/s²`)
                 .fontSize(12)
                 .fontColor('#8E8E93')
+                .margin({ right: 12 })
+              
+              if (this.appState.latestTremor.frequency > 0) {
+                Text(`${this.appState.latestTremor.frequency.toFixed(1)} Hz`)
+                  .fontSize(12)
+                  .fontColor('#8E8E93')
+              }
             }
           }
           .alignItems(HorizontalAlign.Start)
         }
         .width('100%')
         .padding(16)
-        .backgroundColor('#FFE5E5')
+        .backgroundColor('#FFF3E0')
         .borderRadius(12)
-        .border({ width: 2, color: '#FF3B30' })
+        .border({ width: 2, color: '#FF9800' })
       }
     }
     .width('100%')

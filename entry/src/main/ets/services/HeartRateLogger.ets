@@ -1,10 +1,10 @@
 /**
- * HeartRateLogger - Aggregates heart rate data per minute
+ * HeartRateLogger - Aggregates heart rate and tremor data per minute
  * Maintains 5 minutes of data (5 entries, 1 per minute)
- * This data is sent separately to AWS heart rate endpoint
+ * This data is sent to AWS heart rate endpoint every 5 minutes
  */
 
-import { HeartRateData } from '../sensors/SensorData';
+import { HeartRateData, TremorEvent } from '../sensors/SensorData';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { AppConfig } from '../config/AppConfig';
 
@@ -17,13 +17,14 @@ export interface HeartRateMinuteAggregate {
   minBpm: number;
   maxBpm: number;
   sampleCount: number;
+  tremorData: TremorEvent | null; // Tremor/activity data for this minute
 }
 
 export interface HeartRateReport {
   userId: string;
   deviceId: string;
   reportTimestamp: number;
-  minutes: HeartRateMinuteAggregate[]; // 5 entries, one per minute
+  minutes: HeartRateMinuteAggregate[]; // 5 entries, one per minute, each with tremor data
 }
 
 export interface HeartRateStats {
@@ -37,6 +38,7 @@ export class HeartRateLogger {
   private deviceId: string;
   
   private currentMinuteData: HeartRateData[] = [];
+  private currentMinuteTremor: TremorEvent | null = null;
   private currentMinuteStart: number = 0;
   private aggregatedMinutes: HeartRateMinuteAggregate[] = [];
   private lastAggregationTime: number = 0;
@@ -46,7 +48,15 @@ export class HeartRateLogger {
     this.deviceId = deviceId;
     this.currentMinuteStart = this.getMinuteTimestamp(Date.now());
     this.lastAggregationTime = Date.now();
-    hilog.info(DOMAIN, TAG, 'HeartRateLogger initialized');
+    hilog.info(DOMAIN, TAG, 'HeartRateLogger initialized - includes tremor/activity data');
+  }
+
+  /**
+   * Add tremor/activity data for current minute
+   * Only the most recent tremor data per minute is kept
+   */
+  public addTremorData(tremor: TremorEvent): void {
+    this.currentMinuteTremor = tremor;
   }
 
   /**
@@ -65,6 +75,7 @@ export class HeartRateLogger {
       // Start new minute
       this.currentMinuteStart = currentMinute;
       this.currentMinuteData = [];
+      this.currentMinuteTremor = null; // Reset tremor data for new minute
     }
     
     // Add reading to current minute
@@ -84,14 +95,15 @@ export class HeartRateLogger {
       this.aggregateCurrentMinute();
       this.currentMinuteStart = this.getMinuteTimestamp(now);
       this.currentMinuteData = [];
+      this.currentMinuteTremor = null; // Reset tremor data
       this.lastAggregationTime = now;
       
-      hilog.info(DOMAIN, TAG, `Aggregated heart rate data. Total minutes: ${this.aggregatedMinutes.length}`);
+      hilog.info(DOMAIN, TAG, `Aggregated heart rate + tremor data. Total minutes: ${this.aggregatedMinutes.length}`);
     }
   }
 
   /**
-   * Aggregate current minute's data
+   * Aggregate current minute's data (heart rate + tremor)
    */
   private aggregateCurrentMinute(): void {
     if (this.currentMinuteData.length === 0) {
@@ -108,7 +120,8 @@ export class HeartRateLogger {
       avgBpm: Math.round(avgBpm * 10) / 10, // Round to 1 decimal
       minBpm: minBpm,
       maxBpm: maxBpm,
-      sampleCount: this.currentMinuteData.length
+      sampleCount: this.currentMinuteData.length,
+      tremorData: this.currentMinuteTremor // Include tremor/activity data
     };
 
     // Add to aggregated minutes

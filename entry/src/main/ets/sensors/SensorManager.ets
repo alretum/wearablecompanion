@@ -221,8 +221,10 @@ export class SensorManager {
     let finalY = y;
     let finalZ = z;
     
-    // Apply manual gravity compensation if enabled (only for LINEAR mode)
-    if (AppConfig.ACCELEROMETER_TYPE === 'LINEAR' && AppConfig.ENABLE_MANUAL_GRAVITY_COMPENSATION) {
+    // Apply manual gravity compensation if enabled
+    // For REGULAR mode: removes the gravity component measured during calibration
+    // For LINEAR mode: additional compensation if sensor doesn't work properly
+    if (AppConfig.ENABLE_MANUAL_GRAVITY_COMPENSATION) {
       // Calibrate gravity during first N readings (device should be still)
       if (!this.isCalibrated) {
         this.calibrateGravity(x, y, z);

@@ -182,7 +182,7 @@ export class DataCollectionLogger {
     this.currentCollection.lastUpdated = Date.now();
     this.saveCollection();
     
-    hilog.info(DOMAIN, TAG, `Tremor logged: severity=${tremor.severity.toFixed(2)}, total=${this.currentCollection.totalTremors}`);
+    hilog.info(DOMAIN, TAG, `Activity logged: status=${tremor.status}, magnitude=${tremor.magnitude.toFixed(2)}, frequency=${tremor.frequency.toFixed(2)}Hz, total=${this.currentCollection.totalTremors}`);
   }
 
   /**

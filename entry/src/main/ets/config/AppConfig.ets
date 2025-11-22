@@ -51,12 +51,11 @@ export class AppConfig {
   // Use LINEAR_ACCELEROMETER (attempts to remove gravity) or regular ACCELEROMETER (includes gravity)
   // Options: 'LINEAR' or 'REGULAR'
   // LINEAR: Uses LINEAR_ACCELEROMETER - should exclude gravity but may not work on all devices
-  // REGULAR: Uses standard ACCELEROMETER - includes gravity, process offline to remove it
-  static readonly ACCELEROMETER_TYPE: 'LINEAR' | 'REGULAR' = 'REGULAR'; // Changed to REGULAR for stability
+  // REGULAR: Uses standard ACCELEROMETER - includes gravity (raw values)
+  static readonly ACCELEROMETER_TYPE: 'LINEAR' | 'REGULAR' = 'REGULAR'; // REGULAR for stability
   
-  // Sensor calibration (only used if ACCELEROMETER_TYPE = 'LINEAR' and manual compensation enabled)
-  // NOTE: Disable this if LINEAR_ACCELEROMETER gives unstable readings or if you want raw data
-  // When disabled, you'll get the sensor's raw output (which may include gravity if LINEAR_ACCELEROMETER doesn't work)
-  static readonly ENABLE_MANUAL_GRAVITY_COMPENSATION = false; // DISABLED - causing instability, process data offline instead
-  static readonly CALIBRATION_SAMPLES = 50; // Increased for more stable calibration (use 50+ samples)
+  // Gravity compensation - DISABLED to collect raw accelerometer values
+  // Raw data includes gravity and will be processed offline if needed
+  static readonly ENABLE_MANUAL_GRAVITY_COMPENSATION = false; // DISABLED - using raw values
+  static readonly CALIBRATION_SAMPLES = 50; // Not used when compensation is disabled
 }

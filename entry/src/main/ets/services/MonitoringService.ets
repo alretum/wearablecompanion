@@ -341,35 +341,25 @@ export class MonitoringService {
   }
 
   /**
-   * Handle detected tremor
+   * Handle detected tremor/activity data
+   * Tremor data is now included in the 5-minute heart rate report
    */
   private handleTremorDetected(tremor: TremorEvent): void {
-    hilog.info(DOMAIN, TAG, `Tremor detected: severity=${tremor.severity.toFixed(2)}`);
+    hilog.info(DOMAIN, TAG, `Activity detected: status=${tremor.status}, magnitude=${tremor.magnitude.toFixed(2)}, frequency=${tremor.frequency.toFixed(2)}Hz`);
     
     this.appState.latestTremor = tremor;
     this.appState.totalTremorsDetected++;
 
-    // Log to report.json file
-    this.reportLogger?.logTremor(tremor);
+    // Add tremor data to heart rate logger (will be included in 5-minute report)
+    this.heartRateLogger?.addTremorData(tremor);
     
     // Log to data collection if enabled
     if (AppConfig.ENABLE_DATA_COLLECTION) {
       this.dataCollectionLogger?.logTremor(tremor);
     }
     
-    // Send tremor report in batches
-    const tremorCount = this.tremorDetector.getTremorCount();
-    if (tremorCount >= AppConfig.TREMOR_LOG_BATCH_SIZE) {
-      const tremors = this.tremorDetector.getDetectedTremors();
-      this.apiService.sendTremorReport(tremors).then((success) => {
-        if (success && AppConfig.CLEAR_DATA_AFTER_SYNC) {
-          this.tremorDetector.clearDetectedTremors();
-          hilog.info(DOMAIN, TAG, 'Tremor batch sent and cleared');
-        } else if (success) {
-          hilog.info(DOMAIN, TAG, 'Tremor batch sent (data retained)');
-        }
-      });
-    }
+    // NOTE: Tremor data is no longer sent separately
+    // It's now included in the periodic heart rate report every 5 minutes
     
     this.notifyStateChange();
   }

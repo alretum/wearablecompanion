@@ -23,11 +23,20 @@ export interface HeartRateData {
   variability?: number; // For detecting pulse spikes
 }
 
-// Tremor detection result (processed data only, no raw sensor data)
+// Activity status for tremor/motion classification
+export enum ActivityStatus {
+  SEDENTARY = 'sedentary',    // Minimal movement, at rest
+  ACTIVE = 'active',          // Significant movement detected
+  UNKNOWN = 'unknown',        // Cannot determine status
+  NOT_WORN = 'not_worn'       // Device not being worn (heart rate invalid)
+}
+
+// Tremor/motion data - reports activity status and motion metrics
 export interface TremorEvent {
-  severity: number; // 0-10 scale
-  duration: number; // milliseconds
-  timestamp: number;
+  status: ActivityStatus;  // Activity classification
+  magnitude: number;       // Motion magnitude (m/s²)
+  frequency: number;       // Dominant frequency (Hz), 0 if not detected
+  timestamp: number;       // Unix timestamp in milliseconds
 }
 
 // GPS coordinate data

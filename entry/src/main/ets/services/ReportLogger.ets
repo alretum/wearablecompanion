@@ -69,7 +69,7 @@ export class ReportLogger {
     // Save to file
     this.saveReport();
     
-    hilog.info(DOMAIN, TAG, `Tremor logged: severity=${tremor.severity.toFixed(2)}, total=${this.currentReport.totalTremors}`);
+    hilog.info(DOMAIN, TAG, `Activity logged: status=${tremor.status}, magnitude=${tremor.magnitude.toFixed(2)}, total=${this.currentReport.totalTremors}`);
   }
 
   /**

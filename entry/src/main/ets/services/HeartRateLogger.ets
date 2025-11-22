@@ -26,6 +26,11 @@ export interface HeartRateReport {
   minutes: HeartRateMinuteAggregate[]; // 5 entries, one per minute
 }
 
+export interface HeartRateStats {
+  minutesLogged: number;
+  latestAvgBpm: number;
+}
+
 export class HeartRateLogger {
   private static readonly MAX_MINUTES = 5; // Keep last 5 minutes
   private userId: string;
@@ -164,7 +169,7 @@ export class HeartRateLogger {
   /**
    * Get current stats for UI display
    */
-  public getStats(): { minutesLogged: number; latestAvgBpm: number } {
+  public getStats(): HeartRateStats {
     const latestMinute = this.aggregatedMinutes[this.aggregatedMinutes.length - 1];
     return {
       minutesLogged: this.aggregatedMinutes.length,

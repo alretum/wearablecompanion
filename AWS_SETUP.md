@@ -18,10 +18,11 @@ Watch (HarmonyOS)
 
 ## What Gets Sent
 
-### 1. Report Data (Every 5 minutes)
+### 1. Report Data (When Freeze Incidents Occur)
 
 **Endpoint**: `/upload-report`  
 **File**: Complete `report.json` with **processed data only** (no raw sensor data)
+**GPS**: Freeze predictions include GPS coordinates for location tracking
 
 ```json
 {
@@ -48,6 +49,13 @@ Watch (HarmonyOS)
         "tremor": true,
         "gaitDisturbance": true,
         "stressSpike": false
+      },
+      "gpsCoordinates": {
+        "latitude": 51.5074,
+        "longitude": -0.1278,
+        "altitude": 11.0,
+        "accuracy": 5.0,
+        "timestamp": 1234567890000
       }
     }
   ],

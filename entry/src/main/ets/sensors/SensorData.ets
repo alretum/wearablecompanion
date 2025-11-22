@@ -30,6 +30,15 @@ export interface TremorEvent {
   timestamp: number;
 }
 
+// GPS coordinate data
+export interface GPSCoordinates {
+  latitude: number; // Decimal degrees (-90 to 90)
+  longitude: number; // Decimal degrees (-180 to 180)
+  altitude?: number; // Meters above sea level
+  accuracy?: number; // Horizontal accuracy in meters
+  timestamp: number; // Unix timestamp in milliseconds
+}
+
 // Freeze prediction result
 export interface FreezeIndicators {
   tremor: boolean;
@@ -43,6 +52,7 @@ export interface FreezePrediction {
   timestamp: number;
   confidence: number; // 0-1 scale
   indicators: FreezeIndicators;
+  gpsCoordinates?: GPSCoordinates; // GPS location when freeze detected (only for freezes)
 }
 
 // Monitoring status

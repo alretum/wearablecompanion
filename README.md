@@ -109,6 +109,13 @@ All tremors and freeze predictions are logged to local JSON files:
         "tremor": true,
         "gaitDisturbance": true,
         "stressSpike": false
+      },
+      "gpsCoordinates": {
+        "latitude": 51.5074,
+        "longitude": -0.1278,
+        "altitude": 11.0,
+        "accuracy": 5.0,
+        "timestamp": 1234567890000
       }
     }
   ],
@@ -116,7 +123,9 @@ All tremors and freeze predictions are logged to local JSON files:
 }
 ```
 
-**Uploaded to**: `/upload-report` endpoint every 5 minutes
+**Uploaded to**: `/upload-report` endpoint when freeze events occur (no longer on fixed schedule)
+
+**Note**: GPS coordinates are automatically retrieved and included in `freezePredictions` for emergency assistance and location tracking of freeze events. GPS is only used for freeze events, not for tremors.
 
 ### 2. Heart Rate Data (Aggregated per Minute)
 
@@ -159,7 +168,9 @@ All tremors and freeze predictions are logged to local JSON files:
 **Endpoint 1: `/upload-report`**
 - Receives: Processed tremor and freeze prediction data
 - Format: Complete report.json with severity, duration, probability metrics
+- GPS: Freeze predictions include GPS coordinates for emergency location tracking
 - Storage: S3 bucket organized by userId/sessionId
+- Trigger: Sent when freeze incident occurs (not on fixed schedule)
 
 **Endpoint 2: `/upload-heartrate`**
 - Receives: 5 minutes of aggregated heart rate data (1 entry per minute)
@@ -203,6 +214,8 @@ static readonly CLEAR_DATA_AFTER_SYNC = false; // Keep all data for debugging
 entry/src/main/ets/
 ├── config/
 │   └── AppConfig.ets          # Configuration and AWS endpoints
+├── common/
+│   └── CoordinatesConverter.ets # GPS coordinate conversion utility
 ├── sensors/
 │   ├── SensorData.ets         # Data models and interfaces
 │   └── SensorManager.ets      # Sensor data collection
@@ -273,6 +286,13 @@ You need to create three AWS Lambda functions with API Gateway endpoints:
       "tremor": boolean,
       "gaitDisturbance": boolean,
       "stressSpike": boolean
+    },
+    "gpsCoordinates": {
+      "latitude": number,
+      "longitude": number,
+      "altitude": number,
+      "accuracy": number,
+      "timestamp": number
     }
   },
   "timestamp": "unix timestamp"
@@ -444,11 +464,12 @@ The watch displays:
 
 1. **Sensors** → Collect accelerometer, gyroscope, heart rate at 50 Hz
 2. **Algorithms** → Process in real-time, detect patterns
-3. **ReportLogger** → Write tremors and freezes to `report.json`
-4. **Alerts** → Vibrate/notify user of predicted freeze
-5. **API** → Upload `report.json` to AWS every 5 minutes
-6. **Cloud** → AWS Lambda processes and stores in DynamoDB
-7. **Dashboard** → Doctors access reports for patient care
+3. **GPS** → Retrieve coordinates when freeze is predicted
+4. **ReportLogger** → Write tremors and freezes (with GPS) to `report.json`
+5. **Alerts** → Vibrate/notify user of predicted freeze
+6. **API** → Upload `report.json` to AWS when freeze incident occurs
+7. **Cloud** → AWS Lambda processes and stores in DynamoDB
+8. **Dashboard** → Doctors access reports with freeze locations for patient care
 
 ## 🐛 Debugging
 

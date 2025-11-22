@@ -273,6 +273,13 @@ static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API-ID...';
         "tremor": true,
         "gaitDisturbance": true,
         "stressSpike": false
+      },
+      "gpsCoordinates": {
+        "latitude": 51.5074,
+        "longitude": -0.1278,
+        "altitude": 11.0,
+        "accuracy": 5.0,
+        "timestamp": 1700002000000
       }
     }
     // ... more predictions
@@ -285,9 +292,10 @@ static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API-ID...';
 
 1. **Created**: When monitoring starts
 2. **Updated**: Real-time as events occur
-3. **Uploaded**: Every 5 minutes to AWS
-4. **Cleared**: After successful upload (metadata retained)
-5. **Archived**: Old sessions stored in DynamoDB
+3. **GPS Retrieved**: When freeze events are detected
+4. **Uploaded**: When freeze incidents occur (event-driven)
+5. **Cleared**: After successful upload (metadata retained)
+6. **Archived**: Old sessions stored in DynamoDB
 
 ## ☁️ Cloud Integration Details
 
@@ -316,7 +324,8 @@ static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API-ID...';
 3. **POST /sync-data**
    - Receives complete `report.json`
    - Batch processing for efficiency
-   - Scheduled every 5 minutes
+   - Triggered when freeze incidents occur
+   - Includes GPS coordinates for freeze events
 
 ### Security
 

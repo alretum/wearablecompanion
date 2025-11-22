@@ -21,12 +21,16 @@ import {
   GyroscopeData, 
   HeartRateData,
   FreezePrediction,
-  TremorEvent
+  TremorEvent,
+  GPSCoordinates
 } from '../sensors/SensorData';
 import { AppConfig } from '../config/AppConfig';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { vibrator } from '@kit.SensorServiceKit';
-import { common } from '@kit.AbilityKit';
+import { common, abilityAccessCtrl, Permissions } from '@kit.AbilityKit';
+import { geoLocationManager } from '@kit.LocationKit';
+import { BusinessError } from '@kit.BasicServicesKit';
+import { CoordinateType, toDMS } from '../common/CoordinatesConverter';
 
 const DOMAIN = 0x0005;
 const TAG = 'MonitoringService';
@@ -45,6 +49,8 @@ export class MonitoringService {
   private apiService: APIService;
   private reportLogger: ReportLogger | null = null;
   private heartRateLogger: HeartRateLogger | null = null;
+  private context: common.UIAbilityContext | null = null;
+  private atManager: abilityAccessCtrl.AtManager | null = null;
   
   private appState: AppState;
   private stateCallbacks: ((state: AppState) => void)[] = [];
@@ -77,11 +83,76 @@ export class MonitoringService {
    * Initialize ReportLogger with context
    */
   public initialize(context: common.UIAbilityContext): void {
+    this.context = context;
     const userId = 'USER_' + Date.now(); // TODO: Replace with actual user ID
     const deviceId = 'DEVICE_' + Date.now();
     this.reportLogger = new ReportLogger(context, userId, deviceId);
     this.heartRateLogger = new HeartRateLogger(userId, deviceId);
-    hilog.info(DOMAIN, TAG, 'MonitoringService initialized with ReportLogger and HeartRateLogger');
+    this.atManager = abilityAccessCtrl.createAtManager();
+    
+    // Request GPS permissions
+    this.requestGPSPermissions();
+    
+    hilog.info(DOMAIN, TAG, 'MonitoringService initialized with ReportLogger, HeartRateLogger, and GPS');
+  }
+
+  /**
+   * Request GPS location permissions from the user
+   */
+  private async requestGPSPermissions(): Promise<void> {
+    const perms: Permissions[] = [
+      'ohos.permission.LOCATION', 
+      'ohos.permission.APPROXIMATELY_LOCATION'
+    ];
+    
+    try {
+      if (this.atManager && this.context) {
+        const result = await this.atManager.requestPermissionsFromUser(this.context, perms);
+        hilog.info(DOMAIN, TAG, 'GPS permission request result: ' + JSON.stringify(result));
+      }
+    } catch (err) {
+      hilog.error(DOMAIN, TAG, 'Request GPS permission failed: ' + JSON.stringify(err));
+    }
+  }
+
+  /**
+   * Get current GPS coordinates
+   * Returns GPS coordinates or null if location cannot be retrieved
+   */
+  private async getGPSCoordinates(): Promise<GPSCoordinates | null> {
+    // Check if location services are enabled
+    if (!geoLocationManager.isLocationEnabled()) {
+      hilog.warn(DOMAIN, TAG, 'Location services are not enabled');
+      return null;
+    }
+
+    const request: geoLocationManager.SingleLocationRequest = {
+      'locatingPriority': geoLocationManager.LocatingPriority.PRIORITY_LOCATING_SPEED,
+      'locatingTimeoutMs': 10000  // 10 second timeout
+    };
+    
+    try {
+      const result = await geoLocationManager.getCurrentLocation(request);
+      
+      // Log coordinates in both formats
+      hilog.info(DOMAIN, TAG, `GPS coordinates retrieved: ${result.latitude}, ${result.longitude}`);
+      const latDMS = toDMS(result.latitude, CoordinateType.LATITUDE);
+      const lonDMS = toDMS(result.longitude, CoordinateType.LONGITUDE);
+      hilog.info(DOMAIN, TAG, `GPS coordinates (DMS): ${latDMS}, ${lonDMS}`);
+      
+      const gpsCoordinates: GPSCoordinates = {
+        latitude: result.latitude,
+        longitude: result.longitude,
+        altitude: result.altitude,
+        accuracy: result.accuracy,
+        timestamp: result.timeStamp
+      };
+      
+      return gpsCoordinates;
+    } catch (error) {
+      hilog.error(DOMAIN, TAG, 'Failed to get GPS coordinates: ' + JSON.stringify(error));
+      return null;
+    }
   }
 
   /**
@@ -237,17 +308,28 @@ export class MonitoringService {
 
   /**
    * Handle freeze prediction
+   * Retrieves GPS coordinates and adds them to the prediction
    */
-  private handleFreezePrediction(prediction: FreezePrediction): void {
+  private async handleFreezePrediction(prediction: FreezePrediction): Promise<void> {
     hilog.info(DOMAIN, TAG, 
       `Freeze predicted: probability=${prediction.probability.toFixed(2)}, confidence=${prediction.confidence.toFixed(2)}`);
+    
+    // Retrieve GPS coordinates for the freeze event
+    const gpsCoordinates = await this.getGPSCoordinates();
+    if (gpsCoordinates !== null) {
+      prediction.gpsCoordinates = gpsCoordinates;
+      hilog.info(DOMAIN, TAG, 
+        `GPS coordinates added to freeze prediction: ${gpsCoordinates.latitude}, ${gpsCoordinates.longitude}`);
+    } else {
+      hilog.warn(DOMAIN, TAG, 'Could not retrieve GPS coordinates for freeze prediction');
+    }
     
     this.appState.latestPrediction = prediction;
     this.appState.totalFreezesDetected++;
     this.appState.status = MonitoringStatus.ALERT;
     this.allPredictions.push(prediction);
 
-    // Log to report.json file
+    // Log to report.json file (with GPS coordinates if available)
     this.reportLogger?.logFreezePrediction(prediction);
     
     // Send alert to server immediately

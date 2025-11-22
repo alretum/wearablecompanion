@@ -91,6 +91,13 @@ A complete **HarmonyOS wearable health monitoring system** with:
         "tremor": true,
         "gaitDisturbance": true,
         "stressSpike": false
+      },
+      "gpsCoordinates": {
+        "latitude": 51.5074,
+        "longitude": -0.1278,
+        "altitude": 11.0,
+        "accuracy": 5.0,
+        "timestamp": 1234567890000
       }
     }
   ],
@@ -133,25 +140,27 @@ Watch → report.json (local) → AWS API Gateway → Lambda → DynamoDB
 
 ### Upload Process
 1. Events logged to local file continuously
-2. Every 5 minutes, entire file uploaded
-3. AWS Lambda validates and stores data
-4. Local file cleared after successful upload
-5. Session metadata retained
+2. GPS coordinates retrieved when freeze detected
+3. Report uploaded when freeze incident occurs (event-driven)
+4. AWS Lambda validates and stores data
+5. Local file cleared after successful upload
+6. Session metadata retained
 
 ## 📂 Files Created/Modified
 
-### Core Application (11 files)
+### Core Application (12 files)
 - `config/AppConfig.ets` - Configuration
-- `sensors/SensorData.ets` - Data models
+- `common/CoordinatesConverter.ets` - **NEW** GPS coordinate conversion utility
+- `sensors/SensorData.ets` - Data models (updated with GPS coordinates)
 - `sensors/SensorManager.ets` - Sensor collection
 - `algorithms/PredictionAlgorithm.ets` - Freeze prediction framework
 - `algorithms/TremorDetector.ets` - Tremor detection framework
-- `services/MonitoringService.ets` - Main orchestrator
-- `services/ReportLogger.ets` - **NEW** JSON file logging
+- `services/MonitoringService.ets` - Main orchestrator (updated with GPS)
+- `services/ReportLogger.ets` - JSON file logging
 - `connectivity/APIService.ets` - AWS API integration
 - `entryability/EntryAbility.ets` - Updated with context initialization
 - `pages/Index.ets` - Updated with report info card
-- `module.json5` - Updated permissions
+- `module.json5` - Updated permissions (including GPS)
 
 ### Documentation (6 files)
 - `OVERVIEW.md` - **NEW** Complete system overview

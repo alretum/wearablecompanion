@@ -39,6 +39,10 @@
     {
       "name": "permission_vibrate_reason",
       "value": "Used to alert the user when a freezing episode is predicted"
+    },
+    {
+      "name": "permission_reason_location",
+      "value": "This app needs location access to record GPS coordinates when freeze events occur for emergency assistance"
     }
   ]
 }

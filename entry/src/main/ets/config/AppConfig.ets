@@ -46,4 +46,8 @@ export class AppConfig {
   // Algorithm enable/disable (disable for pure data collection)
   static readonly ENABLE_TREMOR_DETECTION = false; // Set to false to disable tremor detection algorithm
   static readonly ENABLE_FREEZE_DETECTION = false; // Set to false to disable freeze prediction algorithm
+  
+  // Sensor calibration
+  static readonly ENABLE_MANUAL_GRAVITY_COMPENSATION = true; // Set to true if LINEAR_ACCELEROMETER doesn't remove gravity properly
+  static readonly CALIBRATION_SAMPLES = 20; // Number of samples to average for gravity calibration (keep device still during startup)
 }

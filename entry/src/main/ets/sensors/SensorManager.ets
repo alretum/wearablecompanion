@@ -11,6 +11,26 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 const DOMAIN = 0x0001;
 const TAG = 'SensorManager';
 
+// Interface for 3D vector used in gravity compensation
+interface Vector3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
+// Implementation class for Vector3D
+class Vector3DImpl implements Vector3D {
+  x: number;
+  y: number;
+  z: number;
+
+  constructor(x: number, y: number, z: number) {
+    this.x = x;
+    this.y = y;
+    this.z = z;
+  }
+}
+
 export class SensorManager {
   private isMonitoring: boolean = false;
   
@@ -24,9 +44,17 @@ export class SensorManager {
   private accelSubscribed: boolean = false;
   private gyroSubscribed: boolean = false;
   private heartRateSubscribed: boolean = false;
+  
+  // Gravity compensation (for devices where LINEAR_ACCELEROMETER doesn't work properly)
+  private gravityVector: Vector3D = new Vector3DImpl(0, 0, 0);
+  private calibrationReadings: Vector3D[] = [];
+  private isCalibrated: boolean = false;
 
   constructor() {
     hilog.info(DOMAIN, TAG, 'SensorManager initialized');
+    if (AppConfig.ENABLE_MANUAL_GRAVITY_COMPENSATION) {
+      hilog.info(DOMAIN, TAG, '⚙️ Manual gravity compensation ENABLED - will calibrate from first readings');
+    }
   }
 
   /**
@@ -47,6 +75,9 @@ export class SensorManager {
     this.onGyroData = onGyro;
     this.onHeartRateData = onHeartRate;
     this.onError = onError;
+
+    // Reset calibration when starting
+    this.resetCalibration();
 
     this.startAccelerometer();
     this.startGyroscope();
@@ -69,27 +100,130 @@ export class SensorManager {
     this.stopHeartRate();
 
     this.isMonitoring = false;
+    this.resetCalibration();
     hilog.info(DOMAIN, TAG, 'Stopped monitoring all sensors');
+  }
+
+  /**
+   * Reset gravity calibration
+   */
+  private resetCalibration(): void {
+    this.calibrationReadings = [];
+    this.gravityVector = new Vector3DImpl(0, 0, 0);
+    this.isCalibrated = false;
+    hilog.info(DOMAIN, TAG, 'Calibration reset - keep device still for initial readings');
+  }
+
+  /**
+   * Calibrate gravity vector from stationary readings
+   * Call this with the first N readings when device is still
+   */
+  private calibrateGravity(x: number, y: number, z: number): void {
+    if (this.isCalibrated) {
+      return;
+    }
+
+    this.calibrationReadings.push(new Vector3DImpl(x, y, z));
+
+    if (this.calibrationReadings.length >= AppConfig.CALIBRATION_SAMPLES) {
+      // Calculate average gravity vector
+      const sumX = this.calibrationReadings.reduce((sum, r) => sum + r.x, 0);
+      const sumY = this.calibrationReadings.reduce((sum, r) => sum + r.y, 0);
+      const sumZ = this.calibrationReadings.reduce((sum, r) => sum + r.z, 0);
+
+      this.gravityVector.x = sumX / this.calibrationReadings.length;
+      this.gravityVector.y = sumY / this.calibrationReadings.length;
+      this.gravityVector.z = sumZ / this.calibrationReadings.length;
+
+      const magnitude = Math.sqrt(
+        this.gravityVector.x * this.gravityVector.x +
+        this.gravityVector.y * this.gravityVector.y +
+        this.gravityVector.z * this.gravityVector.z
+      );
+
+      this.isCalibrated = true;
+      hilog.info(DOMAIN, TAG, 
+        `Gravity calibrated: x=${this.gravityVector.x.toFixed(2)}, y=${this.gravityVector.y.toFixed(2)}, z=${this.gravityVector.z.toFixed(2)}, mag=${magnitude.toFixed(2)} m/s²`);
+      
+      if (magnitude > 8.0 && magnitude < 11.0) {
+        hilog.info(DOMAIN, TAG, '✅ Gravity vector detected correctly (~9.8 m/s²) - compensation will be applied');
+      } else {
+        hilog.warn(DOMAIN, TAG, `⚠️ Unusual gravity magnitude: ${magnitude.toFixed(2)} m/s² (expected ~9.8)`);
+      }
+    }
+  }
+
+  /**
+   * Remove gravity from accelerometer reading
+   */
+  private removeGravity(x: number, y: number, z: number): Vector3D {
+    if (!this.isCalibrated) {
+      // Still calibrating, use raw values
+      return new Vector3DImpl(x, y, z);
+    }
+
+    // Subtract gravity vector to get linear acceleration
+    return new Vector3DImpl(
+      x - this.gravityVector.x,
+      y - this.gravityVector.y,
+      z - this.gravityVector.z
+    );
   }
 
   /**
    * Start linear accelerometer
    * Used to detect gait disturbances and tremors
+   * 
+   * NOTE: LINEAR_ACCELEROMETER should exclude gravity and only measure motion acceleration.
+   * Units are m/s² (meters per second squared).
+   * Expected values when stationary: close to 0 on all axes.
+   * If you see ~9.8 m/s² on any axis, gravity is NOT being removed properly.
+   * 
+   * WORKAROUND: We manually calibrate and subtract gravity for devices where
+   * LINEAR_ACCELEROMETER doesn't work properly.
    */
   private startAccelerometer(): void {
     try {
       sensor.on(sensor.SensorId.LINEAR_ACCELEROMETER, (data: sensor.LinearAccelerometerResponse) => {
+        let finalX = data.x;
+        let finalY = data.y;
+        let finalZ = data.z;
+        
+        // Apply manual gravity compensation if enabled
+        if (AppConfig.ENABLE_MANUAL_GRAVITY_COMPENSATION) {
+          // Calibrate gravity during first N readings (device should be still)
+          if (!this.isCalibrated) {
+            this.calibrateGravity(data.x, data.y, data.z);
+          }
+          
+          // Remove gravity to get true linear acceleration
+          const linearAccel = this.removeGravity(data.x, data.y, data.z);
+          finalX = linearAccel.x;
+          finalY = linearAccel.y;
+          finalZ = linearAccel.z;
+          
+          // Log first reading after calibration to verify
+          if (this.isCalibrated && this.calibrationReadings.length === AppConfig.CALIBRATION_SAMPLES) {
+            const magnitude = Math.sqrt(finalX * finalX + finalY * finalY + finalZ * finalZ);
+            hilog.info(DOMAIN, TAG, 
+              `First compensated reading: x=${finalX.toFixed(2)}, y=${finalY.toFixed(2)}, z=${finalZ.toFixed(2)}, mag=${magnitude.toFixed(2)} m/s²`);
+            hilog.info(DOMAIN, TAG, '✅ Gravity compensation active - values should be near 0 when stationary');
+            this.calibrationReadings.push(new Vector3DImpl(0, 0, 0)); // Dummy value to prevent this log from repeating
+          }
+        }
+        
         const accelData: AccelerometerData = {
-          x: data.x,
-          y: data.y,
-          z: data.z,
+          x: finalX,
+          y: finalY,
+          z: finalZ,
           timestamp: data.timestamp
         };
+        
         this.onAccelData?.(accelData);
       }, { interval: 1000000 / AppConfig.ACCELEROMETER_RATE }); // Convert Hz to microseconds
 
       this.accelSubscribed = true;
-      hilog.info(DOMAIN, TAG, 'Linear accelerometer started');
+      hilog.info(DOMAIN, TAG, 'Linear accelerometer started - monitoring for gravity removal');
     } catch (error) {
       const errorMsg = `Failed to start accelerometer: ${error}`;
       hilog.error(DOMAIN, TAG, errorMsg);
@@ -100,6 +234,12 @@ export class SensorManager {
   /**
    * Start gyroscope
    * Used to detect rotational movements and tremors
+   * 
+   * NOTE: Gyroscope measures ANGULAR VELOCITY (rate of rotation), not absolute orientation.
+   * Units are rad/s (radians per second).
+   * This is a DELTA/RATE measurement - how fast the device is rotating.
+   * Expected values when stationary: close to 0 on all axes.
+   * This is DIFFERENT from accelerometer which measures linear acceleration.
    */
   private startGyroscope(): void {
     try {
@@ -114,7 +254,7 @@ export class SensorManager {
       }, { interval: 1000000 / AppConfig.GYROSCOPE_RATE }); // Convert Hz to microseconds
 
       this.gyroSubscribed = true;
-      hilog.info(DOMAIN, TAG, 'Gyroscope started');
+      hilog.info(DOMAIN, TAG, 'Gyroscope started - measuring angular velocity (rad/s)');
     } catch (error) {
       const errorMsg = `Failed to start gyroscope: ${error}`;
       hilog.error(DOMAIN, TAG, errorMsg);

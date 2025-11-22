@@ -16,7 +16,6 @@ export interface HeartRateMinuteAggregate {
   avgBpm: number;
   minBpm: number;
   maxBpm: number;
-  sampleCount: number;
   tremorData: TremorEvent | null; // Tremor/activity data for this minute
 }
 
@@ -120,7 +119,6 @@ export class HeartRateLogger {
       avgBpm: Math.round(avgBpm * 10) / 10, // Round to 1 decimal
       minBpm: minBpm,
       maxBpm: maxBpm,
-      sampleCount: this.currentMinuteData.length,
       tremorData: this.currentMinuteTremor // Include tremor/activity data
     };
 
@@ -133,7 +131,7 @@ export class HeartRateLogger {
     }
 
     hilog.debug(DOMAIN, TAG, 
-      `Minute aggregated: avg=${aggregate.avgBpm}, min=${minBpm}, max=${maxBpm}, samples=${aggregate.sampleCount}`);
+      `Minute aggregated: avg=${aggregate.avgBpm}, min=${minBpm}, max=${maxBpm}`);
   }
 
   /**

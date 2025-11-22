@@ -47,7 +47,14 @@ export class AppConfig {
   static readonly ENABLE_TREMOR_DETECTION = false; // Set to false to disable tremor detection algorithm
   static readonly ENABLE_FREEZE_DETECTION = false; // Set to false to disable freeze prediction algorithm
   
-  // Sensor calibration
+  // Sensor type selection
+  // Use LINEAR_ACCELEROMETER (attempts to remove gravity) or regular ACCELEROMETER (includes gravity)
+  // Options: 'LINEAR' or 'REGULAR'
+  // LINEAR: Uses LINEAR_ACCELEROMETER - should exclude gravity but may not work on all devices
+  // REGULAR: Uses standard ACCELEROMETER - includes gravity, process offline to remove it
+  static readonly ACCELEROMETER_TYPE: 'LINEAR' | 'REGULAR' = 'REGULAR'; // Changed to REGULAR for stability
+  
+  // Sensor calibration (only used if ACCELEROMETER_TYPE = 'LINEAR' and manual compensation enabled)
   // NOTE: Disable this if LINEAR_ACCELEROMETER gives unstable readings or if you want raw data
   // When disabled, you'll get the sensor's raw output (which may include gravity if LINEAR_ACCELEROMETER doesn't work)
   static readonly ENABLE_MANUAL_GRAVITY_COMPENSATION = false; // DISABLED - causing instability, process data offline instead

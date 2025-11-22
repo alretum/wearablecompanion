@@ -171,17 +171,13 @@ export class SensorManager {
   }
 
   /**
-   * Start linear accelerometer
+   * Start accelerometer (LINEAR or REGULAR based on config)
    * Used to detect gait disturbances and tremors
    * 
-   * NOTE: LINEAR_ACCELEROMETER should exclude gravity and only measure motion acceleration.
-   * Units are m/s² (meters per second squared).
-   * Expected values when stationary: close to 0 on all axes.
-   * If you see ~9.8 m/s² on any axis, gravity is NOT being removed properly.
+   * LINEAR_ACCELEROMETER: Should exclude gravity, may not work on all devices
+   * ACCELEROMETER: Includes gravity, more stable, process offline to remove gravity
    * 
-   * CURRENT SOLUTION: Manual compensation is DISABLED by default because it can cause
-   * instability. Instead, collect raw data and process it offline with proper signal
-   * processing (low-pass filter to extract gravity, high-pass filter for motion).
+   * Units are m/s² (meters per second squared).
    * 
    * For data analysis:
    * - Apply low-pass filter (e.g., 0.3 Hz cutoff) to isolate gravity component
@@ -190,51 +186,72 @@ export class SensorManager {
    */
   private startAccelerometer(): void {
     try {
-      sensor.on(sensor.SensorId.LINEAR_ACCELEROMETER, (data: sensor.LinearAccelerometerResponse) => {
-        let finalX = data.x;
-        let finalY = data.y;
-        let finalZ = data.z;
-        
-        // Apply manual gravity compensation if enabled
-        if (AppConfig.ENABLE_MANUAL_GRAVITY_COMPENSATION) {
-          // Calibrate gravity during first N readings (device should be still)
-          if (!this.isCalibrated) {
-            this.calibrateGravity(data.x, data.y, data.z);
-          }
-          
-          // Remove gravity to get true linear acceleration
-          const linearAccel = this.removeGravity(data.x, data.y, data.z);
-          finalX = linearAccel.x;
-          finalY = linearAccel.y;
-          finalZ = linearAccel.z;
-          
-          // Log first reading after calibration to verify
-          if (this.isCalibrated && this.calibrationReadings.length === AppConfig.CALIBRATION_SAMPLES) {
-            const magnitude = Math.sqrt(finalX * finalX + finalY * finalY + finalZ * finalZ);
-            hilog.info(DOMAIN, TAG, 
-              `First compensated reading: x=${finalX.toFixed(2)}, y=${finalY.toFixed(2)}, z=${finalZ.toFixed(2)}, mag=${magnitude.toFixed(2)} m/s²`);
-            hilog.info(DOMAIN, TAG, '✅ Gravity compensation active - values should be near 0 when stationary');
-            this.calibrationReadings.push(new Vector3DImpl(0, 0, 0)); // Dummy value to prevent this log from repeating
-          }
-        }
-        
-        const accelData: AccelerometerData = {
-          x: finalX,
-          y: finalY,
-          z: finalZ,
-          timestamp: data.timestamp
-        };
-        
-        this.onAccelData?.(accelData);
-      }, { interval: 1000000 / AppConfig.ACCELEROMETER_RATE }); // Convert Hz to microseconds
+      const useLinear = AppConfig.ACCELEROMETER_TYPE === 'LINEAR';
+      const sensorType = useLinear ? sensor.SensorId.LINEAR_ACCELEROMETER : sensor.SensorId.ACCELEROMETER;
+      const sensorName = useLinear ? 'LINEAR_ACCELEROMETER' : 'ACCELEROMETER';
+      
+      hilog.info(DOMAIN, TAG, `Starting ${sensorName} (${AppConfig.ACCELEROMETER_TYPE} mode)`);
+      
+      if (useLinear) {
+        // Use LINEAR_ACCELEROMETER
+        sensor.on(sensor.SensorId.LINEAR_ACCELEROMETER, (data: sensor.LinearAccelerometerResponse) => {
+          this.processAccelerometerData(data.x, data.y, data.z, data.timestamp);
+        }, { interval: 1000000 / AppConfig.ACCELEROMETER_RATE });
+      } else {
+        // Use regular ACCELEROMETER
+        sensor.on(sensor.SensorId.ACCELEROMETER, (data: sensor.AccelerometerResponse) => {
+          this.processAccelerometerData(data.x, data.y, data.z, data.timestamp);
+        }, { interval: 1000000 / AppConfig.ACCELEROMETER_RATE });
+      }
 
       this.accelSubscribed = true;
-      hilog.info(DOMAIN, TAG, 'Linear accelerometer started - monitoring for gravity removal');
+      hilog.info(DOMAIN, TAG, `${sensorName} started successfully`);
     } catch (error) {
       const errorMsg = `Failed to start accelerometer: ${error}`;
       hilog.error(DOMAIN, TAG, errorMsg);
       this.onError?.(errorMsg);
     }
+  }
+
+  /**
+   * Process accelerometer data (common handler for both sensor types)
+   */
+  private processAccelerometerData(x: number, y: number, z: number, timestamp: number): void {
+    let finalX = x;
+    let finalY = y;
+    let finalZ = z;
+    
+    // Apply manual gravity compensation if enabled (only for LINEAR mode)
+    if (AppConfig.ACCELEROMETER_TYPE === 'LINEAR' && AppConfig.ENABLE_MANUAL_GRAVITY_COMPENSATION) {
+      // Calibrate gravity during first N readings (device should be still)
+      if (!this.isCalibrated) {
+        this.calibrateGravity(x, y, z);
+      }
+      
+      // Remove gravity to get true linear acceleration
+      const linearAccel = this.removeGravity(x, y, z);
+      finalX = linearAccel.x;
+      finalY = linearAccel.y;
+      finalZ = linearAccel.z;
+      
+      // Log first reading after calibration to verify
+      if (this.isCalibrated && this.calibrationReadings.length === AppConfig.CALIBRATION_SAMPLES) {
+        const magnitude = Math.sqrt(finalX * finalX + finalY * finalY + finalZ * finalZ);
+        hilog.info(DOMAIN, TAG, 
+          `First compensated reading: x=${finalX.toFixed(2)}, y=${finalY.toFixed(2)}, z=${finalZ.toFixed(2)}, mag=${magnitude.toFixed(2)} m/s²`);
+        hilog.info(DOMAIN, TAG, '✅ Gravity compensation active - values should be near 0 when stationary');
+        this.calibrationReadings.push(new Vector3DImpl(0, 0, 0)); // Dummy value to prevent this log from repeating
+      }
+    }
+    
+    const accelData: AccelerometerData = {
+      x: finalX,
+      y: finalY,
+      z: finalZ,
+      timestamp: timestamp
+    };
+    
+    this.onAccelData?.(accelData);
   }
 
   /**
@@ -304,7 +321,11 @@ export class SensorManager {
   private stopAccelerometer(): void {
     if (this.accelSubscribed) {
       try {
-        sensor.off(sensor.SensorId.LINEAR_ACCELEROMETER);
+        if (AppConfig.ACCELEROMETER_TYPE === 'LINEAR') {
+          sensor.off(sensor.SensorId.LINEAR_ACCELEROMETER);
+        } else {
+          sensor.off(sensor.SensorId.ACCELEROMETER);
+        }
         this.accelSubscribed = false;
         hilog.info(DOMAIN, TAG, 'Accelerometer stopped');
       } catch (error) {

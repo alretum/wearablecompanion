@@ -157,10 +157,6 @@ export class TremorDetector {
     
     return Math.max(0, Math.min(10, severity));
   }
-    const severity = Math.min((avgMagnitude / 2.0) * 10, 10);
-    
-    return severity;
-  }
 
   /**
    * Helper: Count peaks in signal for frequency analysis

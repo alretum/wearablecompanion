@@ -31,4 +31,7 @@ export class AppConfig {
   static readonly ENABLE_VIBRATION_ALERT = true;
   static readonly ENABLE_SOUND_ALERT = true;
   static readonly AUTO_START_MONITORING = false;
+  
+  // Data management
+  static readonly CLEAR_DATA_AFTER_SYNC = true; // Set to false to keep all data in report.json
 }

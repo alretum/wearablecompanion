@@ -212,8 +212,11 @@ export class MonitoringService {
     if (tremorCount >= AppConfig.TREMOR_LOG_BATCH_SIZE) {
       const tremors = this.tremorDetector.getDetectedTremors();
       this.apiService.sendTremorReport(tremors).then((success) => {
-        if (success) {
+        if (success && AppConfig.CLEAR_DATA_AFTER_SYNC) {
           this.tremorDetector.clearDetectedTremors();
+          hilog.info(DOMAIN, TAG, 'Tremor batch sent and cleared');
+        } else if (success) {
+          hilog.info(DOMAIN, TAG, 'Tremor batch sent (data retained)');
         }
       });
     }
@@ -236,8 +239,14 @@ export class MonitoringService {
     // Log to report.json file
     this.reportLogger?.logFreezePrediction(prediction);
     
-    // Send alert to server
-    this.apiService.sendFreezeAlert(prediction);
+    // Send alert to server immediately
+    this.apiService.sendFreezeAlert(prediction).then((success) => {
+      if (success) {
+        hilog.info(DOMAIN, TAG, 'Freeze alert sent successfully');
+        // Note: Individual freeze alerts are not cleared from report.json
+        // They are only cleared during periodic sync if CLEAR_DATA_AFTER_SYNC is enabled
+      }
+    });
     
     // Alert user
     this.alertUser();
@@ -325,11 +334,15 @@ export class MonitoringService {
     
     this.apiService.syncReportFile(reportJSON).then((success) => {
       if (success) {
-        // Clear uploaded data from report file
-        this.reportLogger?.clearUploadedData();
-        this.tremorDetector.clearDetectedTremors();
-        this.allPredictions = [];
-        hilog.info(DOMAIN, TAG, 'Report synced successfully');
+        // Clear uploaded data from report file only if enabled in config
+        if (AppConfig.CLEAR_DATA_AFTER_SYNC) {
+          this.reportLogger?.clearUploadedData();
+          this.tremorDetector.clearDetectedTremors();
+          this.allPredictions = [];
+          hilog.info(DOMAIN, TAG, 'Report synced and cleared successfully');
+        } else {
+          hilog.info(DOMAIN, TAG, 'Report synced successfully (data retained)');
+        }
       } else {
         hilog.error(DOMAIN, TAG, 'Failed to sync report');
       }

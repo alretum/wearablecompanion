@@ -15,6 +15,7 @@ import { APIService, ConnectivityResults } from '../connectivity/APIService';
 import { ReportLogger } from './ReportLogger';
 import { HeartRateLogger } from './HeartRateLogger';
 import { DataCollectionLogger } from './DataCollectionLogger';
+import { APILogStats } from './APILogger';
 import { 
   AppState, 
   MonitoringStatus, 
@@ -31,6 +32,7 @@ import { vibrator } from '@kit.SensorServiceKit';
 import { common, abilityAccessCtrl, Permissions } from '@kit.AbilityKit';
 import { geoLocationManager } from '@kit.LocationKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { CoordinateType, toDMS } from '../common/CoordinatesConverter';
 
 const DOMAIN = 0x0005;
@@ -60,6 +62,7 @@ export class MonitoringService {
   private syncTimer: number = -1;
   private heartRateAggregationTimer: number = -1;
   private allPredictions: FreezePrediction[] = [];
+  private continuousTaskId: number = -1;
 
   private constructor() {
     this.sensorManager = new SensorManager();
@@ -90,6 +93,9 @@ export class MonitoringService {
     const deviceId = 'DEVICE_' + Date.now();
     this.reportLogger = new ReportLogger(context, userId, deviceId);
     this.heartRateLogger = new HeartRateLogger(userId, deviceId);
+    
+    // Initialize API logger
+    this.apiService.initializeLogger(context, userId, deviceId);
     
     // Initialize data collection logger if enabled
     if (AppConfig.ENABLE_DATA_COLLECTION) {
@@ -217,6 +223,9 @@ export class MonitoringService {
       (error) => this.handleSensorError(error)
     );
 
+    // Start continuous background task
+    await this.startContinuousTask();
+    
     // Start periodic data sync
     this.startDataSync();
     this.startHeartRateAggregation();
@@ -239,6 +248,9 @@ export class MonitoringService {
     this.sensorManager.stopMonitoring();
     this.stopDataSync();
     this.stopHeartRateAggregation();
+    
+    // Stop continuous background task
+    this.stopContinuousTask();
     
     // Final sync before stopping
     this.syncDataToServer();
@@ -507,6 +519,45 @@ export class MonitoringService {
   }
 
   /**
+   * Start continuous background task to keep app running in background
+   */
+  private async startContinuousTask(): Promise<void> {
+    if (!this.context) {
+      hilog.error(DOMAIN, TAG, 'Cannot start continuous task: context is null');
+      return;
+    }
+
+    try {
+      await backgroundTaskManager.startBackgroundRunning(
+        this.context,
+        backgroundTaskManager.BackgroundMode.DATA_TRANSFER,
+        {
+          wantAgent: undefined // Optional: can add notification to show background activity
+        }
+      );
+      hilog.info(DOMAIN, TAG, 'Continuous background task started - app will run in background');
+    } catch (error) {
+      hilog.error(DOMAIN, TAG, `Failed to start continuous background task: ${JSON.stringify(error)}`);
+    }
+  }
+
+  /**
+   * Stop continuous background task
+   */
+  private stopContinuousTask(): void {
+    if (!this.context) {
+      return;
+    }
+
+    try {
+      backgroundTaskManager.stopBackgroundRunning(this.context);
+      hilog.info(DOMAIN, TAG, 'Continuous background task stopped');
+    } catch (error) {
+      hilog.error(DOMAIN, TAG, `Failed to stop continuous background task: ${JSON.stringify(error)}`);
+    }
+  }
+
+  /**
    * Start periodic data sync
    */
   private startDataSync(): void {
@@ -624,10 +675,25 @@ export class MonitoringService {
   }
 
   /**
+   * Get API log file path for access
+   */
+  public getAPILogFilePath(): string | null {
+    return this.apiService.getAPILogFilePath();
+  }
+
+  /**
+   * Get API log statistics
+   */
+  public getAPILogStats(): APILogStats {
+    return this.apiService.getAPILogStats();
+  }
+
+  /**
    * Cleanup resources
    */
   public destroy(): void {
     this.stopMonitoring();
+    this.stopContinuousTask();
     this.predictionAlgorithm.reset();
     this.tremorDetector.reset();
     hilog.info(DOMAIN, TAG, 'MonitoringService destroyed');

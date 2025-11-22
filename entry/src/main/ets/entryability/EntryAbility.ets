@@ -28,12 +28,10 @@ export default class EntryAbility extends UIAbility {
   onDestroy(): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
     
-    // Cleanup MonitoringService
-    if (this.monitoringService !== null) {
-      this.monitoringService.destroy();
-      this.monitoringService = null;
-      hilog.info(DOMAIN, 'testTag', 'MonitoringService destroyed');
-    }
+    // DON'T stop monitoring - keep it running in background
+    // Only cleanup UI-related resources
+    // The monitoring service will continue running via the continuous background task
+    hilog.info(DOMAIN, 'testTag', 'Keeping monitoring active in background');
   }
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
@@ -50,20 +48,23 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageDestroy(): void {
-    // Main window is destroyed, release UI related resources
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
+    // Main window is destroyed, but keep monitoring in background
+    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy - keeping monitoring active');
   }
 
   onForeground(): void {
     // Ability has brought to foreground
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
     
-    // Resume monitoring if it was active
-    if (this.monitoringService !== null) {
+    // Ensure monitoring is active
+    if (this.monitoringService !== null && AppConfig.AUTO_START_MONITORING) {
       const state = this.monitoringService.getState();
-      if (state.monitoringStartTime > 0 && !this.monitoringService.getState().status.includes('monitoring')) {
-        // Monitoring was active but paused, resume it
-        hilog.info(DOMAIN, 'testTag', 'Resuming monitoring on foreground');
+      if (state.monitoringStartTime === 0) {
+        // Monitoring not started, start it now
+        this.monitoringService.startMonitoring();
+        hilog.info(DOMAIN, 'testTag', 'Started monitoring on foreground');
+      } else {
+        hilog.info(DOMAIN, 'testTag', 'Monitoring already active');
       }
     }
   }

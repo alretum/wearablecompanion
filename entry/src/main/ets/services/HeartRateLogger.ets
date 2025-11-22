@@ -41,6 +41,7 @@ export class HeartRateLogger {
   private currentMinuteStart: number = 0;
   private aggregatedMinutes: HeartRateMinuteAggregate[] = [];
   private lastAggregationTime: number = 0;
+  private aggregatedTimestamps: Set<number> = new Set(); // Track which minutes have been aggregated
 
   constructor(userId: string, deviceId: string) {
     this.userId = userId;
@@ -66,9 +67,14 @@ export class HeartRateLogger {
     
     // Check if we've moved to a new minute
     if (currentMinute !== this.currentMinuteStart) {
-      // Aggregate the previous minute's data
-      if (this.currentMinuteData.length > 0) {
+      // Aggregate the previous minute's data ONLY if we have data and haven't aggregated it yet
+      if (this.currentMinuteData.length > 0 && 
+          this.currentMinuteStart > 0 && 
+          !this.aggregatedTimestamps.has(this.currentMinuteStart)) {
         this.aggregateCurrentMinute();
+        this.aggregatedTimestamps.add(this.currentMinuteStart);
+        this.lastAggregationTime = Date.now();
+        hilog.info(DOMAIN, TAG, `Aggregated minute ${new Date(this.currentMinuteStart).toISOString()} via addReading`);
       }
       
       // Start new minute
@@ -83,21 +89,24 @@ export class HeartRateLogger {
 
   /**
    * Manually trigger aggregation (called every minute by MonitoringService)
+   * This is a backup mechanism in case addReading doesn't catch the minute change
    */
   public triggerAggregation(): void {
     const now = Date.now();
     const timeSinceLastAggregation = now - this.lastAggregationTime;
     
-    // Only aggregate if at least 1 minute has passed and we have data
+    // Only aggregate if at least 1 minute has passed, we have data, and haven't aggregated this minute yet
     if (timeSinceLastAggregation >= AppConfig.HEART_RATE_AGGREGATE_INTERVAL_MS && 
-        this.currentMinuteData.length > 0) {
+        this.currentMinuteData.length > 0 &&
+        !this.aggregatedTimestamps.has(this.currentMinuteStart)) {
       this.aggregateCurrentMinute();
+      this.aggregatedTimestamps.add(this.currentMinuteStart);
       this.currentMinuteStart = this.getMinuteTimestamp(now);
       this.currentMinuteData = [];
       this.currentMinuteTremor = null; // Reset tremor data
       this.lastAggregationTime = now;
       
-      hilog.info(DOMAIN, TAG, `Aggregated heart rate + tremor data. Total minutes: ${this.aggregatedMinutes.length}`);
+      hilog.info(DOMAIN, TAG, `Triggered aggregation. Total minutes: ${this.aggregatedMinutes.length}`);
     }
   }
 
@@ -136,20 +145,14 @@ export class HeartRateLogger {
 
   /**
    * Get heart rate report (5 minutes of data)
+   * Returns current aggregated data WITHOUT modifying state
    */
   public getReport(): HeartRateReport {
-    // Force aggregate current minute if we have data
-    if (this.currentMinuteData.length > 0) {
-      this.aggregateCurrentMinute();
-      this.currentMinuteData = [];
-      this.currentMinuteStart = this.getMinuteTimestamp(Date.now());
-    }
-
     return {
       userId: this.userId,
       deviceId: this.deviceId,
       reportTimestamp: Date.now(),
-      minutes: [...this.aggregatedMinutes] // Copy array
+      minutes: [...this.aggregatedMinutes] // Copy array without modifying state
     };
   }
 
@@ -164,10 +167,14 @@ export class HeartRateLogger {
    * Clear aggregated data (called after successful upload)
    */
   public clearData(): void {
+    // Clear the timestamps that have been uploaded
+    this.aggregatedMinutes.forEach(minute => {
+      this.aggregatedTimestamps.delete(minute.timestamp);
+    });
+    
     this.aggregatedMinutes = [];
-    this.currentMinuteData = [];
-    this.currentMinuteStart = this.getMinuteTimestamp(Date.now());
-    hilog.info(DOMAIN, TAG, 'Heart rate data cleared');
+    // Don't clear current minute data - it's still being collected
+    hilog.info(DOMAIN, TAG, 'Heart rate aggregated data cleared (keeping current minute)');
   }
 
   /**

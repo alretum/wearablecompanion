@@ -14,6 +14,8 @@ import { TremorEvent, FreezePrediction } from '../sensors/SensorData';
 import { HeartRateReport } from '../services/HeartRateLogger';
 import { AppConfig } from '../config/AppConfig';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { APILogger, APILogStats } from '../services/APILogger';
+import { common } from '@kit.AbilityKit';
 
 const DOMAIN = 0x0004;
 const TAG = 'APIService';
@@ -90,12 +92,21 @@ export interface HeartRateUploadPayload {
 export class APIService {
   private deviceId: string;
   private userId: string; // TODO: Implement user authentication
+  private apiLogger: APILogger | null = null;
 
   constructor() {
     // TODO: Get actual device ID and user ID from authentication system
     this.deviceId = 'DEVICE_' + Date.now(); // Placeholder
     this.userId = 'USER_PLACEHOLDER'; // Replace with actual user ID
     hilog.info(DOMAIN, TAG, 'APIService initialized');
+  }
+
+  /**
+   * Initialize API logger with context
+   */
+  public initializeLogger(context: common.UIAbilityContext, userId: string, deviceId: string): void {
+    this.apiLogger = new APILogger(context, userId, deviceId);
+    hilog.info(DOMAIN, TAG, 'API logger initialized');
   }
 
   /**
@@ -194,10 +205,32 @@ export class APIService {
         report
       );
 
+      // Log successful API call
+      this.apiLogger?.logAPICall(
+        AppConfig.SYNC_DATA_ENDPOINT,
+        'POST',
+        report,
+        true,
+        200,
+        JSON.stringify(response)
+      );
+
       hilog.info(DOMAIN, TAG, `Report uploaded successfully: ${JSON.stringify(response)}`);
       return true;
 
     } catch (error) {
+      // Log failed API call
+      const report = JSON.parse(reportJSON) as Object;
+      this.apiLogger?.logAPICall(
+        AppConfig.SYNC_DATA_ENDPOINT,
+        'POST',
+        report,
+        false,
+        undefined,
+        undefined,
+        String(error)
+      );
+
       hilog.error(DOMAIN, TAG, `Failed to upload report: ${error}`);
       return false;
     }
@@ -210,22 +243,22 @@ export class APIService {
    * This sends 5 minutes of aggregated heart rate data (1 entry per minute)
    */
   public async uploadHeartRateReport(report: HeartRateReport): Promise<boolean> {
+    // Transform report to match API format (excluding sampleCount)
+    const payload: HeartRateUploadPayload = {
+      userId: report.userId,
+      deviceId: report.deviceId,
+      reportTimestamp: new Date(report.reportTimestamp).toISOString(),
+      minuteData: report.minutes.map((minute): HeartRateMinuteData => ({
+        timestamp: new Date(minute.timestamp).toISOString(),
+        avgBpm: minute.avgBpm,
+        minBpm: minute.minBpm,
+        maxBpm: minute.maxBpm
+        // sampleCount excluded as requested
+      }))
+    };
+
     try {
       hilog.info(DOMAIN, TAG, `Uploading heart rate report with ${report.minutes.length} minutes of data`);
-      
-      // Transform report to match API format (excluding sampleCount)
-      const payload: HeartRateUploadPayload = {
-        userId: report.userId,
-        deviceId: report.deviceId,
-        reportTimestamp: new Date(report.reportTimestamp).toISOString(),
-        minuteData: report.minutes.map((minute): HeartRateMinuteData => ({
-          timestamp: new Date(minute.timestamp).toISOString(),
-          avgBpm: minute.avgBpm,
-          minBpm: minute.minBpm,
-          maxBpm: minute.maxBpm
-          // sampleCount excluded as requested
-        }))
-      };
       
       const response = await this.sendHeartRateRequest(
         AppConfig.HEART_RATE_ENDPOINT,
@@ -233,10 +266,31 @@ export class APIService {
         payload
       );
 
+      // Log successful API call
+      this.apiLogger?.logAPICall(
+        AppConfig.HEART_RATE_ENDPOINT,
+        'POST',
+        payload,
+        true,
+        200,
+        JSON.stringify(response)
+      );
+
       hilog.info(DOMAIN, TAG, `Heart rate report uploaded successfully: ${JSON.stringify(response)}`);
       return true;
 
     } catch (error) {
+      // Log failed API call
+      this.apiLogger?.logAPICall(
+        AppConfig.HEART_RATE_ENDPOINT,
+        'POST',
+        payload,
+        false,
+        undefined,
+        undefined,
+        String(error)
+      );
+
       hilog.error(DOMAIN, TAG, `Failed to upload heart rate report: ${error}`);
       return false;
     }
@@ -459,5 +513,23 @@ export class APIService {
   public setUserId(userId: string): void {
     this.userId = userId;
     hilog.info(DOMAIN, TAG, `User ID updated: ${userId}`);
+  }
+
+  /**
+   * Get API log file path
+   */
+  public getAPILogFilePath(): string | null {
+    return this.apiLogger?.getLogFilePath() || null;
+  }
+
+  /**
+   * Get API log statistics
+   */
+  public getAPILogStats(): APILogStats {
+    if (!this.apiLogger) {
+      const emptyStats: APILogStats = { total: 0, successful: 0, failed: 0 };
+      return emptyStats;
+    }
+    return this.apiLogger.getStats();
   }
 }

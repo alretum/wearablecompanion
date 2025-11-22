@@ -523,6 +523,18 @@ struct Index {
         .onClick(() => {
           this.exportData();
         })
+
+      Button('Show API Log Info')
+        .width('100%')
+        .height(44)
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .backgroundColor('#00796B')
+        .borderRadius(14)
+        .margin({ top: 12 })
+        .onClick(() => {
+          this.showAPILogInfo();
+        })
     }
     .width('100%')
     .margin({ bottom: 20 })
@@ -642,5 +654,32 @@ struct Index {
     } else {
       console.log('ERROR: Failed to export data or data collection is disabled');
     }
+  }
+
+  private showAPILogInfo(): void {
+    const logPath = this.monitoringService.getAPILogFilePath();
+    const stats = this.monitoringService.getAPILogStats();
+    
+    console.log('=== API CALL LOG INFO ===');
+    if (logPath) {
+      console.log(`Log file location: ${logPath}`);
+      console.log(`Total API calls: ${stats.total}`);
+      console.log(`Successful: ${stats.successful}`);
+      console.log(`Failed: ${stats.failed}`);
+      console.log('');
+      console.log('To access the api_calls.json file:');
+      console.log('1. Using hdc (HarmonyOS Device Connector):');
+      console.log(`   hdc file recv ${logPath} ./api_calls.json`);
+      console.log('');
+      console.log('2. The file contains:');
+      console.log('   - All API endpoints called');
+      console.log('   - Complete JSON payloads sent');
+      console.log('   - Response codes and bodies');
+      console.log('   - Success/failure status');
+      console.log('   - Timestamps for each call');
+    } else {
+      console.log('API logger not initialized yet');
+    }
+    console.log('=========================');
   }
 }

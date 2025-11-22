@@ -11,8 +11,8 @@ export class AppConfig {
   static readonly HEART_RATE_ENDPOINT = 'https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate';
   
   // Sensor sampling rates (Hz)
-  static readonly ACCELEROMETER_RATE = 10; // 10 Hz - reduced for accuracy and stability
-  static readonly GYROSCOPE_RATE = 10; // 10 Hz - reduced for accuracy and stability
+  static readonly ACCELEROMETER_RATE = 50; // 10 Hz - reduced for accuracy and stability
+  static readonly GYROSCOPE_RATE = 50; // 10 Hz - reduced for accuracy and stability
   static readonly HEART_RATE_INTERVAL = 1000; // 1 second for heart rate
   
   // Detection thresholds
@@ -26,7 +26,7 @@ export class AppConfig {
   
   // Timing
   static readonly PREDICTION_WINDOW_MS = 5000; // Predict 5 seconds ahead
-  static readonly DATA_SYNC_INTERVAL_MS = 300000; // Sync to server every 5 minutes
+  static readonly DATA_SYNC_INTERVAL_MS = 60000; // Sync to server every 5 minutes
   static readonly HEART_RATE_AGGREGATE_INTERVAL_MS = 60000; // Aggregate heart rate every 1 minute
   
   // Monitoring behavior

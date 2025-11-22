@@ -11,6 +11,34 @@
     {
       "name": "EntryAbility_label",
       "value": "label"
+    },
+    {
+      "name": "permission_accelerometer_reason",
+      "value": "Used to detect motion patterns and tremors associated with Parkinson's disease"
+    },
+    {
+      "name": "permission_gyroscope_reason",
+      "value": "Used to detect rotational movements and tremor patterns for freeze prediction"
+    },
+    {
+      "name": "permission_health_reason",
+      "value": "Used to monitor heart rate for detecting stress spikes that may precede freezing episodes"
+    },
+    {
+      "name": "permission_internet_reason",
+      "value": "Used to upload monitoring data to cloud for doctor analysis and medical reporting"
+    },
+    {
+      "name": "permission_sync_reason",
+      "value": "Used to synchronize patient health data with cloud storage for medical review"
+    },
+    {
+      "name": "permission_background_reason",
+      "value": "Used to continue monitoring for freeze detection even when app is in background"
+    },
+    {
+      "name": "permission_vibrate_reason",
+      "value": "Used to alert the user when a freezing episode is predicted"
     }
   ]
 }

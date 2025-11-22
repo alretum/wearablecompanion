@@ -492,6 +492,30 @@ struct Index {
         .onClick(() => {
           this.testAPI();
         })
+
+      Button('View Data Collection Stats')
+        .width('100%')
+        .height(44)
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .backgroundColor('#2196F3')
+        .borderRadius(14)
+        .margin({ top: 12 })
+        .onClick(() => {
+          this.showDataStats();
+        })
+
+      Button('Export Data Collection')
+        .width('100%')
+        .height(44)
+        .fontSize(14)
+        .fontWeight(FontWeight.Medium)
+        .backgroundColor('#9C27B0')
+        .borderRadius(14)
+        .margin({ top: 12 })
+        .onClick(() => {
+          this.exportData();
+        })
     }
     .width('100%')
     .margin({ bottom: 20 })
@@ -573,5 +597,43 @@ struct Index {
     const results = await this.monitoringService.testAPIConnectivity();
     // TODO: Display results in a dialog
     console.log('API Test Results:', results);
+  }
+
+  private showDataStats(): void {
+    const stats = this.monitoringService.getDataCollectionStats();
+    console.log('=== DATA COLLECTION STATS ===');
+    console.log(stats);
+    console.log('=============================');
+    
+    const logger = this.monitoringService.getDataCollectionLogger();
+    if (logger) {
+      const collection = logger.getCollection();
+      if (collection) {
+        console.log('Latest data sample:');
+        if (collection.accelerometerData.length > 0) {
+          const latest = collection.accelerometerData[collection.accelerometerData.length - 1];
+          console.log(`  Accel: x=${latest.x.toFixed(2)}, y=${latest.y.toFixed(2)}, z=${latest.z.toFixed(2)}`);
+        }
+        if (collection.heartRateData.length > 0) {
+          const latest = collection.heartRateData[collection.heartRateData.length - 1];
+          console.log(`  Heart Rate: ${latest.bpm} BPM`);
+        }
+      }
+    }
+  }
+
+  private exportData(): void {
+    const backupPath = this.monitoringService.exportDataCollection();
+    if (backupPath) {
+      console.log('=== DATA EXPORTED ===');
+      console.log(`File saved to: ${backupPath}`);
+      console.log('=====================');
+      console.log('You can access this file via:');
+      console.log('1. hdc file recv <remote_path> <local_path>');
+      console.log(`2. Remote path: ${backupPath}`);
+      console.log('======================');
+    } else {
+      console.log('ERROR: Failed to export data or data collection is disabled');
+    }
   }
 }

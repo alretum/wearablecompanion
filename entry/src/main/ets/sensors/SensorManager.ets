@@ -129,11 +129,18 @@ export class SensorManager {
   private startHeartRate(): void {
     try {
       sensor.on(sensor.SensorId.HEART_RATE, (data: sensor.HeartRateResponse) => {
-        const heartRateData: HeartRateData = {
-          bpm: data.heartRate,
-          timestamp: Date.now()
-        };
-        this.onHeartRateData?.(heartRateData);
+        // Validate heart rate reading
+        // Filter out invalid readings (255 indicates no sensor contact, 0 is also invalid)
+        // Normal human heart rate range: 30-220 BPM
+        if (data.heartRate > 0 && data.heartRate < 220 && data.heartRate !== 255) {
+          const heartRateData: HeartRateData = {
+            bpm: data.heartRate,
+            timestamp: Date.now()
+          };
+          this.onHeartRateData?.(heartRateData);
+        } else {
+          hilog.warn(DOMAIN, TAG, `Invalid heart rate reading: ${data.heartRate} BPM (sensor not in contact or invalid)`);
+        }
       }, { interval: AppConfig.HEART_RATE_INTERVAL * 1000 }); // Convert ms to microseconds
 
       this.heartRateSubscribed = true;

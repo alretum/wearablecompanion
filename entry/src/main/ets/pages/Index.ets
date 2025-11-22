@@ -36,7 +36,7 @@ struct Index {
         .padding({ top: 16, bottom: 20, left: 16, right: 16 })
         .linearGradient({
           angle: 135,
-          colors: [[0x667EEA, 0.0], [0x764BA2, 1.0]]
+          colors: [[0x56AB2F, 0.0], [0xA8E063, 1.0]]
         })
         .borderRadius({ bottomLeft: 24, bottomRight: 24 })
 
@@ -67,7 +67,7 @@ struct Index {
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F8F9FA')
+    .backgroundColor('#F0F8F4')
     .scrollBar(BarState.Off)
   }
 
@@ -136,7 +136,7 @@ struct Index {
       }
       .width('100%')
       .padding(12)
-      .backgroundColor('#F2F2F7')
+      .backgroundColor('#E8F5E9')
       .borderRadius(10)
       .margin({ bottom: 10 })
 
@@ -160,7 +160,7 @@ struct Index {
       }
       .width('100%')
       .padding(12)
-      .backgroundColor('#F2F2F7')
+      .backgroundColor('#E8F5E9')
       .borderRadius(10)
       .margin({ bottom: 10 })
 
@@ -184,7 +184,7 @@ struct Index {
       }
       .width('100%')
       .padding(12)
-      .backgroundColor('#F2F2F7')
+      .backgroundColor('#E8F5E9')
       .borderRadius(10)
     }
     .width('100%')
@@ -328,7 +328,7 @@ struct Index {
           Text(`${this.appState.totalTremorsDetected}`)
             .fontSize(32)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#34C759')
+            .fontColor('#26A69A')
           Text('Tremors')
             .fontSize(11)
             .fontColor('#8E8E93')
@@ -336,7 +336,7 @@ struct Index {
         }
         .width('50%')
         .padding(16)
-        .backgroundColor('#F2F2F7')
+        .backgroundColor('#E8F5E9')
         .borderRadius(12)
 
         Column() {
@@ -351,7 +351,7 @@ struct Index {
         }
         .width('50%')
         .padding(16)
-        .backgroundColor('#F2F2F7')
+        .backgroundColor('#E8F5E9')
         .borderRadius(12)
         .margin({ left: 8 })
       }
@@ -397,9 +397,9 @@ struct Index {
     }
     .width('100%')
     .padding(16)
-    .backgroundColor('#FFFBEA')
+    .backgroundColor('#E8F5E9')
     .borderRadius(12)
-    .border({ width: 1, color: '#FFE082' })
+    .border({ width: 1, color: '#81C784' })
     .margin({ bottom: 16 })
   }
 
@@ -447,9 +447,9 @@ struct Index {
           .height(52)
           .fontSize(16)
           .fontWeight(FontWeight.Bold)
-          .backgroundColor('#34C759')
+          .backgroundColor('#2E7D32')
           .borderRadius(14)
-          .shadow({ radius: 8, color: 0x2034C759, offsetX: 0, offsetY: 4 })
+          .shadow({ radius: 8, color: 0x202E7D32, offsetX: 0, offsetY: 4 })
           .onClick(() => {
             this.monitoringService.startMonitoring();
           })
@@ -472,7 +472,7 @@ struct Index {
         .height(44)
         .fontSize(14)
         .fontWeight(FontWeight.Medium)
-        .backgroundColor('#007AFF')
+        .backgroundColor('#4CAF50')
         .borderRadius(14)
         .margin({ top: 12 })
         .onClick(() => {
@@ -504,7 +504,7 @@ struct Index {
       case MonitoringStatus.STOPPED:
         return '#999';
       case MonitoringStatus.MONITORING:
-        return '#4CAF50';
+        return '#2E7D32';
       case MonitoringStatus.ALERT:
         return '#FF9800';
       case MonitoringStatus.ERROR:

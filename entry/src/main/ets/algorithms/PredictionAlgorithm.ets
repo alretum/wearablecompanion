@@ -11,7 +11,7 @@
  * - Festination (rapid, small steps)
  */
 
-import { AccelerometerData, GyroscopeData, HeartRateData, FreezePrediction } from '../sensors/SensorData';
+import { AccelerometerData, GyroscopeData, HeartRateData, FreezePrediction, FreezeIndicators } from '../sensors/SensorData';
 import { AppConfig } from '../config/AppConfig';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
@@ -65,7 +65,7 @@ export class PredictionAlgorithm {
     // TODO: IMPLEMENT YOUR PREDICTION ALGORITHM HERE
     // This is a placeholder that demonstrates the expected structure
     
-    const indicators = {
+    const indicators: FreezeIndicators = {
       tremor: this.detectTremorPattern(),
       gaitDisturbance: this.detectGaitDisturbance(),
       stressSpike: this.detectStressSpike()
@@ -154,11 +154,7 @@ export class PredictionAlgorithm {
    * TODO: Implement your freeze probability calculation
    * Combine indicators using weights based on research or ML model
    */
-  private calculateFreezeProbability(indicators: {
-    tremor: boolean;
-    gaitDisturbance: boolean;
-    stressSpike: boolean;
-  }): number {
+  private calculateFreezeProbability(indicators: FreezeIndicators): number {
     // Placeholder: Simple weighted combination
     // TODO: Replace with your trained model or sophisticated algorithm
     

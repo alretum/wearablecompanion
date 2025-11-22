@@ -263,10 +263,22 @@ struct Index {
         .fontWeight(FontWeight.Medium)
         .margin({ bottom: 8 })
 
-      const reportLogger = this.monitoringService.getReportLogger();
-      if (reportLogger) {
-        const report = reportLogger.getReport();
-        if (report) {
+      this.ReportInfoContent()
+    }
+    .width('100%')
+    .padding(12)
+    .backgroundColor('#FFF9C4')
+    .borderRadius(8)
+    .margin({ bottom: 12 })
+  }
+
+  @Builder
+  ReportInfoContent() {
+    const reportLogger = this.monitoringService.getReportLogger();
+    if (reportLogger) {
+      const report = reportLogger.getReport();
+      if (report) {
+        Column() {
           Text(`Session: ${report.sessionId}`)
             .fontSize(10)
             .fontColor('#666')
@@ -277,26 +289,21 @@ struct Index {
             .fontColor('#333')
             .margin({ bottom: 4 })
           
-          const fileSize = reportLogger.getReportSize();
-          Text(`File size: ${(fileSize / 1024).toFixed(2)} KB`)
+          Text(`File size: ${(reportLogger.getReportSize() / 1024).toFixed(2)} KB`)
             .fontSize(10)
             .fontColor('#666')
-        } else {
-          Text('No active report')
-            .fontSize(11)
-            .fontColor('#999')
         }
+        .alignItems(HorizontalAlign.Start)
       } else {
-        Text('Report logger not initialized')
+        Text('No active report')
           .fontSize(11)
           .fontColor('#999')
       }
+    } else {
+      Text('Report logger not initialized')
+        .fontSize(11)
+        .fontColor('#999')
     }
-    .width('100%')
-    .padding(12)
-    .backgroundColor('#FFF9C4')
-    .borderRadius(8)
-    .margin({ bottom: 12 })
   }
 
   @Builder

@@ -17,6 +17,19 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 const DOMAIN = 0x0004;
 const TAG = 'APIService';
 
+interface HttpHeaders {
+  'Content-Type': string;
+  'Accept': string;
+}
+
+interface HttpResponseData {
+  success?: boolean;
+  reportId?: string;
+  alertId?: string;
+  syncId?: string;
+  message?: string;
+}
+
 export interface TremorReportPayload {
   userId: string; // TODO: Add user authentication
   deviceId: string;
@@ -31,6 +44,11 @@ export interface FreezeAlertPayload {
   timestamp: number;
 }
 
+export interface SyncDataPayloadData {
+  tremors: TremorEvent[];
+  predictions: FreezePrediction[];
+}
+
 export interface SyncDataPayload {
   userId: string; // TODO: Add user authentication
   deviceId: string;
@@ -38,10 +56,7 @@ export interface SyncDataPayload {
   sessionEnd: number;
   totalTremors: number;
   totalFreezes: number;
-  data: {
-    tremors: TremorEvent[];
-    predictions: FreezePrediction[];
-  };
+  data: SyncDataPayloadData;
 }
 
 export class APIService {
@@ -84,7 +99,7 @@ export class APIService {
       
       const response = await this.sendRequest(
         AppConfig.TREMOR_REPORT_ENDPOINT,
-        'POST',
+        http.RequestMethod.POST,
         payload
       );
 
@@ -121,7 +136,7 @@ export class APIService {
       
       const response = await this.sendRequest(
         AppConfig.FREEZE_ALERT_ENDPOINT,
-        'POST',
+        http.RequestMethod.POST,
         payload
       );
 
@@ -147,7 +162,7 @@ export class APIService {
       
       const response = await this.sendRequest(
         AppConfig.SYNC_DATA_ENDPOINT,
-        'POST',
+        http.RequestMethod.POST,
         report
       );
 
@@ -197,7 +212,7 @@ export class APIService {
       
       const response = await this.sendRequest(
         AppConfig.SYNC_DATA_ENDPOINT,
-        'POST',
+        http.RequestMethod.POST,
         payload
       );
 
@@ -216,16 +231,16 @@ export class APIService {
    */
   private async sendRequest(
     url: string,
-    method: 'GET' | 'POST' | 'PUT',
-    data?: Record<string, Object>
-  ): Promise<Record<string, Object>> {
+    method: http.RequestMethod,
+    data?: TremorReportPayload | FreezeAlertPayload | SyncDataPayload | Object
+  ): Promise<HttpResponseData> {
     return new Promise((resolve, reject) => {
       const httpRequest = http.createHttp();
 
       // TODO: Add authentication headers
-      const headers = {
+      const headers: HttpHeaders = {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        'Accept': 'application/json'
         // Add your authentication headers here
         // 'Authorization': `Bearer ${this.getAuthToken()}`,
         // 'X-API-Key': 'your-api-key',
@@ -240,7 +255,7 @@ export class APIService {
         readTimeout: 10000
       };
 
-      httpRequest.request(url, requestOptions, (err, data) => {
+      httpRequest.request(url, requestOptions, (err: Error, data: http.HttpResponse) => {
         if (err) {
           hilog.error(DOMAIN, TAG, `HTTP request failed: ${JSON.stringify(err)}`);
           httpRequest.destroy();
@@ -249,15 +264,15 @@ export class APIService {
         }
 
         if (data.responseCode !== 200) {
-          const error = `HTTP ${data.responseCode}: ${data.result}`;
-          hilog.error(DOMAIN, TAG, error);
+          const errorMsg = `HTTP ${data.responseCode}: ${data.result}`;
+          hilog.error(DOMAIN, TAG, errorMsg);
           httpRequest.destroy();
-          reject(new Error(error));
+          reject(new Error(errorMsg));
           return;
         }
 
         try {
-          const response = JSON.parse(data.result as string);
+          const response = JSON.parse(data.result as string) as HttpResponseData;
           httpRequest.destroy();
           resolve(response);
         } catch (parseError) {
@@ -273,27 +288,45 @@ export class APIService {
    * Test connectivity to AWS endpoints
    * Useful for debugging and setup validation
    */
-  public async testConnectivity(): Promise<{ [key: string]: boolean }> {
-    const results: { [key: string]: boolean } = {};
+  public async testConnectivity(): Promise<ConnectivityResults> {
+    const results: ConnectivityResults = {
+      tremorReport: false,
+      freezeAlert: false,
+      syncData: false
+    };
 
     // Test each endpoint
-    const endpoints = {
+    const endpoints: EndpointMap = {
       tremorReport: AppConfig.TREMOR_REPORT_ENDPOINT,
       freezeAlert: AppConfig.FREEZE_ALERT_ENDPOINT,
       syncData: AppConfig.SYNC_DATA_ENDPOINT
     };
 
-    for (const [name, url] of Object.entries(endpoints)) {
-      try {
-        // Simple GET request to check if endpoint is reachable
-        // Your actual Lambda should handle OPTIONS or GET for health checks
-        await this.sendRequest(url, 'GET');
-        results[name] = true;
-        hilog.info(DOMAIN, TAG, `${name} endpoint is reachable`);
-      } catch (error) {
-        results[name] = false;
-        hilog.warn(DOMAIN, TAG, `${name} endpoint is not reachable: ${error}`);
-      }
+    try {
+      await this.sendRequest(endpoints.tremorReport, http.RequestMethod.GET);
+      results.tremorReport = true;
+      hilog.info(DOMAIN, TAG, 'tremorReport endpoint is reachable');
+    } catch (error) {
+      results.tremorReport = false;
+      hilog.warn(DOMAIN, TAG, `tremorReport endpoint is not reachable: ${error}`);
+    }
+
+    try {
+      await this.sendRequest(endpoints.freezeAlert, http.RequestMethod.GET);
+      results.freezeAlert = true;
+      hilog.info(DOMAIN, TAG, 'freezeAlert endpoint is reachable');
+    } catch (error) {
+      results.freezeAlert = false;
+      hilog.warn(DOMAIN, TAG, `freezeAlert endpoint is not reachable: ${error}`);
+    }
+
+    try {
+      await this.sendRequest(endpoints.syncData, http.RequestMethod.GET);
+      results.syncData = true;
+      hilog.info(DOMAIN, TAG, 'syncData endpoint is reachable');
+    } catch (error) {
+      results.syncData = false;
+      hilog.warn(DOMAIN, TAG, `syncData endpoint is not reachable: ${error}`);
     }
 
     return results;

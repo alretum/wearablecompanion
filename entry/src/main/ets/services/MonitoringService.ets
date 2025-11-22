@@ -30,6 +30,11 @@ import { common } from '@kit.AbilityKit';
 const DOMAIN = 0x0005;
 const TAG = 'MonitoringService';
 
+interface VibrateOptions {
+  type: string;
+  duration: number;
+}
+
 export class MonitoringService {
   private static instance: MonitoringService | null = null;
   
@@ -265,9 +270,14 @@ export class MonitoringService {
     if (AppConfig.ENABLE_VIBRATION_ALERT) {
       try {
         // Short vibration pattern: 200ms on, 100ms off, 200ms on
-        vibrator.startVibration({
+        const vibrateOptions: VibrateOptions = {
           type: 'time',
           duration: 500
+        };
+        vibrator.startVibration(vibrateOptions, (error: Error) => {
+          if (error) {
+            hilog.error(DOMAIN, TAG, `Vibration failed: ${error}`);
+          }
         });
       } catch (error) {
         hilog.error(DOMAIN, TAG, `Vibration failed: ${error}`);

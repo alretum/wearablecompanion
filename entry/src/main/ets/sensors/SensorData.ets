@@ -33,16 +33,18 @@ export interface TremorEvent {
 }
 
 // Freeze prediction result
+export interface FreezeIndicators {
+  tremor: boolean;
+  gaitDisturbance: boolean;
+  stressSpike: boolean;
+}
+
 export interface FreezePrediction {
   probability: number; // 0-1 scale
   timeToFreeze?: number; // milliseconds until predicted freeze
   timestamp: number;
   confidence: number; // 0-1 scale
-  indicators: {
-    tremor: boolean;
-    gaitDisturbance: boolean;
-    stressSpike: boolean;
-  };
+  indicators: FreezeIndicators;
 }
 
 // Monitoring status

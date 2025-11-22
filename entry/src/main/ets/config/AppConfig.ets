@@ -11,8 +11,8 @@ export class AppConfig {
   static readonly HEART_RATE_ENDPOINT = 'https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod/upload-heartrate';
   
   // Sensor sampling rates (Hz)
-  static readonly ACCELEROMETER_RATE = 50; // 50 Hz
-  static readonly GYROSCOPE_RATE = 50; // 50 Hz
+  static readonly ACCELEROMETER_RATE = 10; // 10 Hz - reduced for accuracy and stability
+  static readonly GYROSCOPE_RATE = 10; // 10 Hz - reduced for accuracy and stability
   static readonly HEART_RATE_INTERVAL = 1000; // 1 second for heart rate
   
   // Detection thresholds
@@ -37,5 +37,13 @@ export class AppConfig {
   static readonly ENABLE_SOUND_ALERT = true;
   
   // Data management
-  static readonly CLEAR_DATA_AFTER_SYNC = true; // Set to true to clear report.json after successful upload
+  static readonly CLEAR_DATA_AFTER_SYNC = false; // Set to true to clear report.json after successful upload
+  
+  // Data collection mode (for datacollection2 branch testing)
+  static readonly ENABLE_DATA_COLLECTION = true; // Set to true to collect all sensor data for analysis
+  static readonly DATA_COLLECTION_SAVE_INTERVAL = 100; // Save every N readings (accelerometer/gyroscope)
+  
+  // Algorithm enable/disable (disable for pure data collection)
+  static readonly ENABLE_TREMOR_DETECTION = false; // Set to false to disable tremor detection algorithm
+  static readonly ENABLE_FREEZE_DETECTION = false; // Set to false to disable freeze prediction algorithm
 }

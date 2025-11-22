@@ -6,6 +6,7 @@ import { AppState, MonitoringStatus } from '../sensors/SensorData';
 struct Index {
   @State appState: AppState = new AppState();
   private monitoringService: MonitoringService = MonitoringService.getInstance();
+  private uiUpdateTimer: number = -1;
 
   aboutToAppear(): void {
     // Register for state updates
@@ -15,6 +16,19 @@ struct Index {
     
     // Get initial state
     this.appState = this.monitoringService.getState();
+    
+    // Start periodic UI updates to refresh sensor data display
+    this.uiUpdateTimer = setInterval(() => {
+      this.appState = this.monitoringService.getState();
+    }, 1000); // Update every second
+  }
+  
+  aboutToDisappear(): void {
+    // Clean up timer
+    if (this.uiUpdateTimer !== -1) {
+      clearInterval(this.uiUpdateTimer);
+      this.uiUpdateTimer = -1;
+    }
   }
 
   build() {
@@ -515,26 +529,26 @@ struct Index {
   }
 
   private formatAccelData(): string {
-    if (this.appState.currentAccel === null) {
-      return 'No data';
+    if (this.appState.lastSavedAccel === null) {
+      return 'No data saved yet';
     }
-    const a = this.appState.currentAccel;
-    return `x:${a.x.toFixed(2)} y:${a.y.toFixed(2)} z:${a.z.toFixed(2)}`;
+    const a = this.appState.lastSavedAccel;
+    return `x:${a.x.toFixed(1)} y:${a.y.toFixed(1)} z:${a.z.toFixed(1)}`;
   }
 
   private formatGyroData(): string {
-    if (this.appState.currentGyro === null) {
-      return 'No data';
+    if (this.appState.lastSavedGyro === null) {
+      return 'No data saved yet';
     }
-    const g = this.appState.currentGyro;
-    return `x:${g.x.toFixed(2)} y:${g.y.toFixed(2)} z:${g.z.toFixed(2)}`;
+    const g = this.appState.lastSavedGyro;
+    return `x:${g.x.toFixed(1)} y:${g.y.toFixed(1)} z:${g.z.toFixed(1)}`;
   }
 
   private formatHeartRateData(): string {
-    if (this.appState.currentHeartRate === null) {
-      return 'No data';
+    if (this.appState.lastSavedHeartRate === null) {
+      return 'No data saved yet';
     }
-    return `${this.appState.currentHeartRate.bpm} BPM`;
+    return `${Math.round(this.appState.lastSavedHeartRate.bpm)} BPM`;
   }
 
   private formatSessionDuration(): string {

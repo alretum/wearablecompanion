@@ -69,6 +69,12 @@ export class AppState {
   currentAccel: AccelerometerData | null = null;
   currentGyro: GyroscopeData | null = null;
   currentHeartRate: HeartRateData | null = null;
+  
+  // Last saved values (what's actually persisted to file)
+  lastSavedAccel: AccelerometerData | null = null;
+  lastSavedGyro: GyroscopeData | null = null;
+  lastSavedHeartRate: HeartRateData | null = null;
+  
   latestPrediction: FreezePrediction | null = null;
   latestTremor: TremorEvent | null = null;
   errorMessage: string = '';

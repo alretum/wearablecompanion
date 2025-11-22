@@ -22,6 +22,25 @@ This system monitors motion patterns and physiological signals in real-time to:
 | **[AWS_SETUP.md](AWS_SETUP.md)** | AWS deployment guide | Setting up cloud backend |
 | **[ALGORITHM_GUIDE.md](ALGORITHM_GUIDE.md)** | Implementation examples | Coding the detection algorithms |
 | **[PROJECT_SUMMARY.md](PROJECT_SUMMARY.md)** | What's built summary | Quick reference |
+| **[DATA_COLLECTION_GUIDE.md](DATA_COLLECTION_GUIDE.md)** | Data collection for testing | Branch: `datacollection2` |
+
+---
+
+## 🧪 Data Collection Branch
+
+For comprehensive sensor data collection and testing, checkout the **`datacollection2`** branch:
+
+```bash
+git switch datacollection2
+```
+
+This branch enables:
+- ✅ **All raw sensor data logging** (accelerometer, gyroscope, heart rate at full rate)
+- ✅ **Complete event capture** (tremors, freezes, GPS coordinates)
+- ✅ **Local JSON export** for analysis with Python/MATLAB
+- ✅ **Testing and algorithm development** without cloud upload
+
+See **[DATA_COLLECTION_GUIDE.md](DATA_COLLECTION_GUIDE.md)** for complete instructions.
 
 ---
 

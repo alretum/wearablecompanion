@@ -14,6 +14,7 @@ import { TremorDetector } from '../algorithms/TremorDetector';
 import { APIService, ConnectivityResults } from '../connectivity/APIService';
 import { ReportLogger } from './ReportLogger';
 import { HeartRateLogger } from './HeartRateLogger';
+import { DataCollectionLogger } from './DataCollectionLogger';
 import { 
   AppState, 
   MonitoringStatus, 
@@ -49,6 +50,7 @@ export class MonitoringService {
   private apiService: APIService;
   private reportLogger: ReportLogger | null = null;
   private heartRateLogger: HeartRateLogger | null = null;
+  private dataCollectionLogger: DataCollectionLogger | null = null;
   private context: common.UIAbilityContext | null = null;
   private atManager: abilityAccessCtrl.AtManager | null = null;
   
@@ -88,19 +90,28 @@ export class MonitoringService {
     const deviceId = 'DEVICE_' + Date.now();
     this.reportLogger = new ReportLogger(context, userId, deviceId);
     this.heartRateLogger = new HeartRateLogger(userId, deviceId);
+    
+    // Initialize data collection logger if enabled
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      this.dataCollectionLogger = new DataCollectionLogger(context, userId, deviceId);
+      hilog.info(DOMAIN, TAG, 'Data collection mode ENABLED');
+    }
+    
     this.atManager = abilityAccessCtrl.createAtManager();
     
-    // Request GPS permissions
-    this.requestGPSPermissions();
+    // Request all necessary permissions
+    this.requestAllPermissions();
     
-    hilog.info(DOMAIN, TAG, 'MonitoringService initialized with ReportLogger, HeartRateLogger, and GPS');
+    hilog.info(DOMAIN, TAG, 'MonitoringService initialized with ReportLogger, HeartRateLogger, DataCollectionLogger, and GPS');
   }
 
   /**
-   * Request GPS location permissions from the user
+   * Request all necessary runtime permissions from the user
+   * Returns true if all permissions granted, false otherwise
    */
-  private async requestGPSPermissions(): Promise<void> {
+  private async requestAllPermissions(): Promise<boolean> {
     const perms: Permissions[] = [
+      'ohos.permission.READ_HEALTH_DATA',  // Required for heart rate sensor
       'ohos.permission.LOCATION', 
       'ohos.permission.APPROXIMATELY_LOCATION'
     ];
@@ -108,11 +119,25 @@ export class MonitoringService {
     try {
       if (this.atManager && this.context) {
         const result = await this.atManager.requestPermissionsFromUser(this.context, perms);
-        hilog.info(DOMAIN, TAG, 'GPS permission request result: ' + JSON.stringify(result));
+        hilog.info(DOMAIN, TAG, 'Permission request result: ' + JSON.stringify(result));
+        
+        // Check if all permissions were granted
+        let allGranted = true;
+        result.authResults.forEach((authResult, index) => {
+          const permName = perms[index];
+          if (authResult === 0) {
+            hilog.info(DOMAIN, TAG, `Permission granted: ${permName}`);
+          } else {
+            hilog.warn(DOMAIN, TAG, `Permission denied: ${permName}`);
+            allGranted = false;
+          }
+        });
+        return allGranted;
       }
     } catch (err) {
-      hilog.error(DOMAIN, TAG, 'Request GPS permission failed: ' + JSON.stringify(err));
+      hilog.error(DOMAIN, TAG, 'Request permissions failed: ' + JSON.stringify(err));
     }
+    return false;
   }
 
   /**
@@ -157,14 +182,26 @@ export class MonitoringService {
 
   /**
    * Start monitoring for Parkinson's symptoms
+   * Ensures all permissions are granted before starting sensors
    */
-  public startMonitoring(): void {
+  public async startMonitoring(): Promise<void> {
     if (this.appState.status === MonitoringStatus.MONITORING) {
       hilog.warn(DOMAIN, TAG, 'Already monitoring');
       return;
     }
 
     hilog.info(DOMAIN, TAG, 'Starting monitoring...');
+    
+    // Verify all permissions are granted
+    const permissionsGranted = await this.requestAllPermissions();
+    if (!permissionsGranted) {
+      const errorMsg = 'Cannot start monitoring: Not all permissions granted';
+      hilog.error(DOMAIN, TAG, errorMsg);
+      this.appState.status = MonitoringStatus.ERROR;
+      this.appState.errorMessage = errorMsg;
+      this.notifyStateChange();
+      return;
+    }
     
     this.appState.status = MonitoringStatus.MONITORING;
     this.appState.monitoringStartTime = Date.now();
@@ -219,6 +256,14 @@ export class MonitoringService {
   private handleAccelerometerData(accel: AccelerometerData): void {
     this.appState.currentAccel = accel;
     
+    // Log to data collection if enabled and update lastSaved when persisted
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      const wasSaved = this.dataCollectionLogger?.logAccelerometer(accel);
+      if (wasSaved) {
+        this.appState.lastSavedAccel = accel;
+      }
+    }
+    
     // Process with current gyroscope data if available
     if (this.appState.currentGyro !== null) {
       this.processMotionData(accel, this.appState.currentGyro);
@@ -230,6 +275,14 @@ export class MonitoringService {
    */
   private handleGyroscopeData(gyro: GyroscopeData): void {
     this.appState.currentGyro = gyro;
+    
+    // Log to data collection if enabled and update lastSaved when persisted
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      const wasSaved = this.dataCollectionLogger?.logGyroscope(gyro);
+      if (wasSaved) {
+        this.appState.lastSavedGyro = gyro;
+      }
+    }
     
     // Process with current accelerometer data if available
     if (this.appState.currentAccel !== null) {
@@ -246,6 +299,12 @@ export class MonitoringService {
     // Add to heart rate logger
     this.heartRateLogger?.addReading(heartRate);
     
+    // Log to data collection if enabled (heart rate saves immediately)
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      this.dataCollectionLogger?.logHeartRate(heartRate);
+      this.appState.lastSavedHeartRate = heartRate; // Always saved immediately
+    }
+    
     this.notifyStateChange();
   }
 
@@ -257,21 +316,25 @@ export class MonitoringService {
       return; // Wait for heart rate data
     }
 
-    // Detect tremors
-    const tremor = this.tremorDetector.detectTremor(accel, gyro);
-    if (tremor !== null) {
-      this.handleTremorDetected(tremor);
+    // Detect tremors (only if enabled)
+    if (AppConfig.ENABLE_TREMOR_DETECTION) {
+      const tremor = this.tremorDetector.detectTremor(accel, gyro);
+      if (tremor !== null) {
+        this.handleTremorDetected(tremor);
+      }
     }
 
-    // Predict freezes
-    const prediction = this.predictionAlgorithm.predictFreeze(
-      accel, 
-      gyro, 
-      this.appState.currentHeartRate
-    );
-    
-    if (prediction !== null) {
-      this.handleFreezePrediction(prediction);
+    // Predict freezes (only if enabled)
+    if (AppConfig.ENABLE_FREEZE_DETECTION) {
+      const prediction = this.predictionAlgorithm.predictFreeze(
+        accel, 
+        gyro, 
+        this.appState.currentHeartRate
+      );
+      
+      if (prediction !== null) {
+        this.handleFreezePrediction(prediction);
+      }
     }
 
     this.notifyStateChange();
@@ -288,6 +351,11 @@ export class MonitoringService {
 
     // Log to report.json file
     this.reportLogger?.logTremor(tremor);
+    
+    // Log to data collection if enabled
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      this.dataCollectionLogger?.logTremor(tremor);
+    }
     
     // Send tremor report in batches
     const tremorCount = this.tremorDetector.getTremorCount();
@@ -331,6 +399,14 @@ export class MonitoringService {
 
     // Log to report.json file (with GPS coordinates if available)
     this.reportLogger?.logFreezePrediction(prediction);
+    
+    // Log to data collection if enabled
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      this.dataCollectionLogger?.logFreezePrediction(prediction);
+      if (gpsCoordinates !== null) {
+        this.dataCollectionLogger?.logGPS(gpsCoordinates);
+      }
+    }
     
     // Send alert to server immediately
     this.apiService.sendFreezeAlert(prediction).then((success) => {
@@ -526,6 +602,33 @@ export class MonitoringService {
    */
   public getReportLogger(): ReportLogger | null {
     return this.reportLogger;
+  }
+
+  /**
+   * Get the data collection logger instance
+   */
+  public getDataCollectionLogger(): DataCollectionLogger | null {
+    return this.dataCollectionLogger;
+  }
+
+  /**
+   * Get data collection statistics
+   */
+  public getDataCollectionStats(): string {
+    if (!AppConfig.ENABLE_DATA_COLLECTION || !this.dataCollectionLogger) {
+      return 'Data collection is disabled';
+    }
+    return this.dataCollectionLogger.getStats();
+  }
+
+  /**
+   * Export data collection to backup file
+   */
+  public exportDataCollection(): string {
+    if (!AppConfig.ENABLE_DATA_COLLECTION || !this.dataCollectionLogger) {
+      return '';
+    }
+    return this.dataCollectionLogger.exportToBackup();
   }
 
   /**

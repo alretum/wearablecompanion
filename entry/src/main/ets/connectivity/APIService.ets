@@ -20,7 +20,8 @@ const TAG = 'APIService';
 
 interface HttpHeaders {
   'Content-Type': string;
-  'Accept': string;
+  'Accept'?: string;
+  'x-api-key'?: string;
 }
 
 interface HttpResponseData {
@@ -70,6 +71,20 @@ export interface SyncDataPayload {
   totalTremors: number;
   totalFreezes: number;
   data: SyncDataPayloadData;
+}
+
+export interface HeartRateMinuteData {
+  timestamp: string;
+  avgBpm: number;
+  minBpm: number;
+  maxBpm: number;
+}
+
+export interface HeartRateUploadPayload {
+  userId: string;
+  deviceId: string;
+  reportTimestamp: string;
+  minuteData: HeartRateMinuteData[];
 }
 
 export class APIService {
@@ -189,7 +204,7 @@ export class APIService {
   }
 
   /**
-   * Upload heart rate report to AWS Lambda
+   * Upload heart rate report to Supabase function
    * Endpoint: POST /upload-heartrate
    * 
    * This sends 5 minutes of aggregated heart rate data (1 entry per minute)
@@ -198,10 +213,24 @@ export class APIService {
     try {
       hilog.info(DOMAIN, TAG, `Uploading heart rate report with ${report.minutes.length} minutes of data`);
       
-      const response = await this.sendRequest(
+      // Transform report to match API format (excluding sampleCount)
+      const payload: HeartRateUploadPayload = {
+        userId: report.userId,
+        deviceId: report.deviceId,
+        reportTimestamp: new Date(report.reportTimestamp).toISOString(),
+        minuteData: report.minutes.map((minute): HeartRateMinuteData => ({
+          timestamp: new Date(minute.timestamp).toISOString(),
+          avgBpm: minute.avgBpm,
+          minBpm: minute.minBpm,
+          maxBpm: minute.maxBpm
+          // sampleCount excluded as requested
+        }))
+      };
+      
+      const response = await this.sendHeartRateRequest(
         AppConfig.HEART_RATE_ENDPOINT,
         http.RequestMethod.POST,
-        report
+        payload
       );
 
       hilog.info(DOMAIN, TAG, `Heart rate report uploaded successfully: ${JSON.stringify(response)}`);
@@ -261,6 +290,60 @@ export class APIService {
       hilog.error(DOMAIN, TAG, `Failed to sync data: ${error}`);
       return false;
     }
+  }
+
+  /**
+   * Specialized HTTP request handler for heart rate endpoint with custom headers
+   */
+  private async sendHeartRateRequest(
+    url: string,
+    method: http.RequestMethod,
+    data?: Object
+  ): Promise<HttpResponseData> {
+    return new Promise((resolve, reject) => {
+      const httpRequest = http.createHttp();
+
+      const headers: HttpHeaders = {
+        'Content-Type': 'application/json',
+        'x-api-key': 'ParkinsonAtHackatum'
+      };
+
+      const requestOptions: http.HttpRequestOptions = {
+        method: method,
+        header: headers,
+        extraData: data ? JSON.stringify(data) : undefined,
+        expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 10000,
+        readTimeout: 10000
+      };
+
+      httpRequest.request(url, requestOptions, (err: Error, data: http.HttpResponse) => {
+        if (err) {
+          hilog.error(DOMAIN, TAG, `HTTP request failed: ${JSON.stringify(err)}`);
+          httpRequest.destroy();
+          reject(err);
+          return;
+        }
+
+        if (data.responseCode !== 200) {
+          const errorMsg = `HTTP ${data.responseCode}: ${data.result}`;
+          hilog.error(DOMAIN, TAG, errorMsg);
+          httpRequest.destroy();
+          reject(new Error(errorMsg));
+          return;
+        }
+
+        try {
+          const response = JSON.parse(data.result as string) as HttpResponseData;
+          httpRequest.destroy();
+          resolve(response);
+        } catch (parseError) {
+          hilog.error(DOMAIN, TAG, `Failed to parse response: ${parseError}`);
+          httpRequest.destroy();
+          reject(parseError);
+        }
+      });
+    });
   }
 
   /**

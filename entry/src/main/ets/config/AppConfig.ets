@@ -8,7 +8,7 @@ export class AppConfig {
   static readonly TREMOR_REPORT_ENDPOINT = ''; // Not used anymore
   static readonly FREEZE_ALERT_ENDPOINT = ''; // Not used anymore
   static readonly SYNC_DATA_ENDPOINT = 'https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod/upload-report';
-  static readonly HEART_RATE_ENDPOINT = 'https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod/upload-heartrate';
+  static readonly HEART_RATE_ENDPOINT = 'https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate';
   
   // Sensor sampling rates (Hz)
   static readonly ACCELEROMETER_RATE = 10; // 10 Hz - reduced for accuracy and stability
@@ -40,7 +40,7 @@ export class AppConfig {
   static readonly CLEAR_DATA_AFTER_SYNC = false; // Set to true to clear report.json after successful upload
   
   // Data collection mode (for datacollection2 branch testing)
-  static readonly ENABLE_DATA_COLLECTION = true; // Set to true to collect all sensor data for analysis
+  static readonly ENABLE_DATA_COLLECTION = false; // Set to true to collect all sensor data for analysis
   static readonly DATA_COLLECTION_SAVE_INTERVAL = 100; // Save every N readings (accelerometer/gyroscope)
   
   // Algorithm enable/disable (disable for pure data collection)

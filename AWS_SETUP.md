@@ -73,7 +73,6 @@ Watch (HarmonyOS)
       "avgBpm": 72.5,
       "minBpm": 68,
       "maxBpm": 78,
-      "sampleCount": 60,
       "tremorData": {
         "status": "active",
         "magnitude": 1.2,
@@ -86,7 +85,6 @@ Watch (HarmonyOS)
       "avgBpm": 74.2,
       "minBpm": 70,
       "maxBpm": 80,
-      "sampleCount": 60,
       "tremorData": {
         "status": "sedentary",
         "magnitude": 0.3,
@@ -99,7 +97,6 @@ Watch (HarmonyOS)
       "avgBpm": 73.8,
       "minBpm": 69,
       "maxBpm": 79,
-      "sampleCount": 60,
       "tremorData": null
     },
     {
@@ -107,7 +104,6 @@ Watch (HarmonyOS)
       "avgBpm": 75.1,
       "minBpm": 71,
       "maxBpm": 82,
-      "sampleCount": 60,
       "tremorData": {
         "status": "active",
         "magnitude": 1.8,
@@ -120,7 +116,6 @@ Watch (HarmonyOS)
       "avgBpm": 73.3,
       "minBpm": 68,
       "maxBpm": 77,
-      "sampleCount": 60,
       "tremorData": null
     }
   ]
@@ -608,7 +603,7 @@ static readonly FREEZE_ALERT_ENDPOINT = '';
 
 **Heart Rate**:
 - Sensor reads heart rate every second
-- Every minute, aggregates readings into: avgBpm, minBpm, maxBpm, sampleCount
+- Every minute, aggregates readings into: avgBpm, minBpm, maxBpm
 - Keeps last 5 minutes of aggregates
 - Every 5 minutes, uploads all 5 aggregates to AWS
 
@@ -715,7 +710,7 @@ Use AWS Console → Lambda → Test
 
 ```json
 {
-  "body": "{\"userId\":\"USER_TEST\",\"deviceId\":\"DEVICE_TEST\",\"reportTimestamp\":1732233900000,\"minutes\":[{\"timestamp\":1732233600000,\"avgBpm\":72.5,\"minBpm\":68,\"maxBpm\":78,\"sampleCount\":60},{\"timestamp\":1732233660000,\"avgBpm\":74.2,\"minBpm\":70,\"maxBpm\":80,\"sampleCount\":60},{\"timestamp\":1732233720000,\"avgBpm\":73.8,\"minBpm\":69,\"maxBpm\":79,\"sampleCount\":60},{\"timestamp\":1732233780000,\"avgBpm\":75.1,\"minBpm\":71,\"maxBpm\":82,\"sampleCount\":60},{\"timestamp\":1732233840000,\"avgBpm\":73.3,\"minBpm\":68,\"maxBpm\":77,\"sampleCount\":60}]}"
+  "body": "{\"userId\":\"USER_TEST\",\"deviceId\":\"DEVICE_TEST\",\"reportTimestamp\":1732233900000,\"minutes\":[{\"timestamp\":1732233600000,\"avgBpm\":72.5,\"minBpm\":68,\"maxBpm\":78},{\"timestamp\":1732233660000,\"avgBpm\":74.2,\"minBpm\":70,\"maxBpm\":80},{\"timestamp\":1732233720000,\"avgBpm\":73.8,\"minBpm\":69,\"maxBpm\":79},{\"timestamp\":1732233780000,\"avgBpm\":75.1,\"minBpm\":71,\"maxBpm\":82},{\"timestamp\":1732233840000,\"avgBpm\":73.3,\"minBpm\":68,\"maxBpm\":77}]}"
 }
 ```
 

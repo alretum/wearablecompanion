@@ -154,7 +154,6 @@ All tremors and freeze predictions are logged to local JSON files:
       "avgBpm": 72.5,
       "minBpm": 68,
       "maxBpm": 78,
-      "sampleCount": 60,
       "tremorData": {
         "status": "active",
         "magnitude": 1.2,
@@ -194,7 +193,7 @@ All tremors and freeze predictions are logged to local JSON files:
 
 **Endpoint 2: `/upload-heartrate`**
 - Receives: 5 minutes of aggregated heart rate + tremor/activity data (1 entry per minute)
-- Format: avgBpm, minBpm, maxBpm, sampleCount, and optional tremorData (status, magnitude, frequency) for each minute
+- Format: avgBpm, minBpm, maxBpm, and optional tremorData (status, magnitude, frequency) for each minute
 - Storage: S3 bucket organized by userId/timestamp
 - Trigger: Sent every 5 minutes
 

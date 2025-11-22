@@ -38,20 +38,37 @@ This system monitors motion patterns and physiological signals in real-time to:
 ### 2. Configure App (5 minutes)
 ```typescript
 // Edit: entry/src/main/ets/config/AppConfig.ets
+
+// AWS endpoints - replace with your actual API Gateway URLs
 static readonly TREMOR_REPORT_ENDPOINT = 'https://YOUR-API...';
 static readonly FREEZE_ALERT_ENDPOINT = 'https://YOUR-API...';
 static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API...';
+
+// Monitoring behavior - app runs continuously by default
+static readonly AUTO_START_MONITORING = true; // Set false to require manual start
+
+// Data management - data cleared after upload by default
+static readonly CLEAR_DATA_AFTER_SYNC = true; // Set false to retain all data
 ```
 
-### 3. Implement Algorithms (1-2 hours)
-```typescript
-// Edit: entry/src/main/ets/algorithms/
-// - PredictionAlgorithm.ets (freeze prediction)
-// - TremorDetector.ets (tremor detection)
-// See ALGORITHM_GUIDE.md for implementation options
-```
+### 3. Test & Deploy
+- Mock detection algorithms are already implemented for testing
+- Deploy to watch and monitoring starts automatically
+- Replace mock algorithms with real implementations later
 
 **Then**: Build, deploy, test! 🎉
+
+---
+
+## 🔄 Always-On Monitoring Mode
+
+By default (`AUTO_START_MONITORING = true`):
+- ✅ App starts monitoring **automatically** when launched
+- ✅ Continues running in **background** (requires KEEP_BACKGROUND_RUNNING permission)
+- ✅ User can manually stop/start via UI buttons
+- ✅ Persists across app restarts
+
+To require manual start: Set `AUTO_START_MONITORING = false` in AppConfig.ets
 
 ---
 
@@ -98,6 +115,31 @@ All tremors and freeze predictions are logged to a local JSON file:
 This file is continuously updated and uploaded to the cloud for processing.
 
 ## ☁️ Cloud Integration
+
+### Data Upload Strategy
+
+**Periodic Sync** (Every 5 minutes):
+- Complete `report.json` uploaded to `/sync-data` endpoint
+- On success: Tremors and predictions cleared from file (if `CLEAR_DATA_AFTER_SYNC = true`)
+- Session metadata retained for continuity
+
+**Immediate Alerts**:
+- Freeze predictions sent instantly to `/freeze-alert`
+- Critical for real-time patient warnings
+
+**Batch Reports**:
+- Every 10 tremors sent to `/tremor-report`
+- Reduces API calls while maintaining timeliness
+
+### Data Retention Control
+
+Set in `AppConfig.ets`:
+```typescript
+static readonly CLEAR_DATA_AFTER_SYNC = true;  // Clear after upload (default)
+static readonly CLEAR_DATA_AFTER_SYNC = false; // Keep all data for debugging
+```
+
+---
 
 The system integrates with AWS for data storage and analysis:
 

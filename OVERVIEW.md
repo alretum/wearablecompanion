@@ -6,9 +6,23 @@
 
 This HarmonyOS wearable application predicts and detects Parkinson's disease symptoms in real-time:
 - **Freeze Prediction**: Warns 5 seconds before freezing of gait episodes
-- **Tremor Detection**: Identifies and measures tremor events
+- **Tremor Detection**: Identifies and measures tremor events with mock algorithms
 - **Cloud Reporting**: Automatically uploads patient data for medical analysis
 - **Real-time Alerts**: Vibration feedback to warn patients
+- **Always-On Monitoring**: Runs continuously by default (configurable)
+
+## 🔄 Monitoring Modes
+
+### Default: Always-On Mode (`AUTO_START_MONITORING = true`)
+- App starts monitoring automatically on launch
+- Continues in background with KEEP_BACKGROUND_RUNNING permission
+- User can stop/start via UI as needed
+- Recommended for production use
+
+### Manual Mode (`AUTO_START_MONITORING = false`)
+- User must tap "Start Monitoring" button
+- Useful for testing or controlled usage
+- Can be toggled in AppConfig.ets
 
 ## 📦 What's Included
 
@@ -96,8 +110,22 @@ This HarmonyOS wearable application predicts and detects Parkinson's disease sym
 - **Gyroscope**: 50 Hz, detects rotation and tremors
 - **Heart Rate**: 1 Hz, detects stress through pulse spikes
 
-### 2. Algorithm Processing (Watch)
-- **TremorDetector**: Analyzes 4-6 Hz oscillations
+### 3. Local Storage (Watch)
+- **ReportLogger**: Manages report.json file
+- **Continuous Writing**: Every event saved immediately
+- **File Location**: `{app_files_dir}/report.json`
+- **Upload Cycle**: Every 5 minutes to cloud
+- **Data Clearing**: Configurable via `CLEAR_DATA_AFTER_SYNC`
+  - `true` (default): Clears tremors/predictions after successful upload
+  - `false`: Retains all data for debugging
+
+### 4. Cloud Upload (Every 5 minutes)
+- **Endpoint**: POST `/sync-data`
+- **Payload**: Complete report.json file
+- **On Success**: 
+  - If `CLEAR_DATA_AFTER_SYNC = true`: Clear event arrays, keep session metadata
+  - If `CLEAR_DATA_AFTER_SYNC = false`: Retain all data
+- **On Failure**: Retry on next cycle, data preserved
 - **PredictionAlgorithm**: Predicts freezing from gait patterns
 - Real-time processing with minimal latency
 

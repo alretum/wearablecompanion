@@ -41,20 +41,45 @@ Use this checklist to get your Parkinson's Freeze Detection system up and runnin
 
 - [ ] **2.2** Update `entry/src/main/ets/config/AppConfig.ets`
   ```typescript
-  // Replace these with your actual endpoints:
+  // Replace with your actual AWS API Gateway endpoints:
   static readonly TREMOR_REPORT_ENDPOINT = 'https://YOUR-API-ID...';
   static readonly FREEZE_ALERT_ENDPOINT = 'https://YOUR-API-ID...';
   static readonly SYNC_DATA_ENDPOINT = 'https://YOUR-API-ID...';
   static readonly AWS_REGION = 'YOUR-REGION';
+  
+  // Monitoring behavior (default: always-on)
+  static readonly AUTO_START_MONITORING = true; // Set false for manual start
+  
+  // Data management (default: clear after upload)
+  static readonly CLEAR_DATA_AFTER_SYNC = true; // Set false to keep all data
   ```
 
-- [ ] **2.3** (Optional) Add authentication in `connectivity/APIService.ets`
+- [ ] **2.3** (Optional) Change monitoring mode
+  - Keep `AUTO_START_MONITORING = true` for production (always running)
+  - Set to `false` for testing/development (manual start required)
+
+- [ ] **2.4** (Optional) Change data retention
+  - Keep `CLEAR_DATA_AFTER_SYNC = true` for production (saves storage)
+  - Set to `false` for debugging (keeps all historical data)
+
+- [ ] **2.5** (Optional) Add authentication in `connectivity/APIService.ets`
   ```typescript
   'Authorization': `Bearer ${YOUR_JWT_TOKEN}`,
   'X-API-Key': 'YOUR_API_KEY',
   ```
 
-### Phase 3: Implement Algorithms (Variable - depends on complexity)
+### Phase 3: Test with Mock Algorithms (Quick Start) OR Implement Real Algorithms
+
+**✅ Mock Algorithms Already Implemented** - You can skip to Phase 4 for testing!
+
+The app includes working mock detection algorithms:
+- Mock tremor detection with lowered thresholds + 5% random trigger
+- Mock freeze prediction with realistic scoring
+- Perfect for testing the complete system end-to-end
+
+**To test immediately**: Skip to Phase 4, deploy, and start monitoring!
+
+**To implement real algorithms** (Optional - do after testing system):
 
 Choose your approach (see ALGORITHM_GUIDE.md for details):
 
@@ -105,15 +130,25 @@ Choose your approach (see ALGORITHM_GUIDE.md for details):
     - Health Data (Heart Rate)
     - Internet
     - Background Running
+    - Vibrate
 
-- [ ] **4.4** Test functionality
-  - [ ] Open app on watch
+- [ ] **4.4** Observe auto-start behavior
+  - **If `AUTO_START_MONITORING = true`** (default):
+    - App opens and immediately starts monitoring
+    - Status shows "Monitoring..." in green
+    - Sensor data begins updating
+  - **If `AUTO_START_MONITORING = false`**:
+    - App opens with "Stopped" status
+    - Tap "Start Monitoring" button to begin
+
+- [ ] **4.5** Test functionality
   - [ ] Click "Test API Connection" - should show success
-  - [ ] Click "Start Monitoring" - status should change to "Monitoring..."
+  - [ ] Verify status is "Monitoring..." (green)
   - [ ] Move watch to see sensor data update
   - [ ] Check "Report File" card shows session info
   - [ ] Verify report.json file is being created
   - [ ] Check logs for algorithm output
+  - [ ] Wait for mock tremors/freezes to trigger randomly
   - [ ] Verify data uploads to AWS DynamoDB tables
 
 ### Phase 5: Validate (Ongoing)

@@ -27,11 +27,13 @@ export class AppConfig {
   static readonly PREDICTION_WINDOW_MS = 5000; // Predict 5 seconds ahead
   static readonly DATA_SYNC_INTERVAL_MS = 300000; // Sync to server every 5 minutes
   
-  // User settings (can be made configurable via UI)
+  // Monitoring behavior
+  static readonly AUTO_START_MONITORING = false; // Set to false to require manual start via UI button
+  
+  // Alert settings
   static readonly ENABLE_VIBRATION_ALERT = true;
   static readonly ENABLE_SOUND_ALERT = true;
-  static readonly AUTO_START_MONITORING = false;
   
   // Data management
-  static readonly CLEAR_DATA_AFTER_SYNC = false; // Set to false to keep all data in report.json
+  static readonly CLEAR_DATA_AFTER_SYNC = false; // Set to false to keep all data in report.json after upload
 }

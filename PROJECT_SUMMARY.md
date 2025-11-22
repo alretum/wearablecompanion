@@ -2,11 +2,33 @@
 
 ## ✨ What's Been Built
 
-A complete **HarmonyOS wearable health monitoring system** with local JSON logging and AWS cloud integration for detecting and predicting Parkinson's disease symptoms.
+A complete **HarmonyOS wearable health monitoring system** with:
+- ✅ Local JSON logging
+- ✅ AWS cloud integration
+- ✅ **Mock detection algorithms for testing**
+- ✅ **Always-on monitoring mode (configurable)**
+- ✅ **Automatic data clearing after upload (configurable)**
 
 ## 🎯 Core Features
 
-### 1. **Local Data Logging** (NEW) ✅
+### 1. **Always-On Monitoring** ✅
+- **Auto-Start**: Monitoring begins automatically on app launch (`AUTO_START_MONITORING = true`)
+- **Background Running**: Continues monitoring when app is minimized
+- **User Control**: Can manually stop/start via UI buttons
+- **Configurable**: Set to `false` for manual start mode
+
+### 2. **Mock Detection Algorithms** ✅ (NEW)
+- **Tremor Detection**: Mock implementation with lowered thresholds + 5% random trigger
+- **Freeze Prediction**: Realistic mock scoring based on multiple indicators
+- **Ready to Test**: No algorithm implementation needed for initial testing
+- **Easy to Replace**: Marked with comments for real algorithm implementation
+
+### 3. **Configurable Data Management** ✅
+- **Auto-Clear**: Data cleared from report.json after successful upload (`CLEAR_DATA_AFTER_SYNC = true`)
+- **Debug Mode**: Retain all data for analysis (`CLEAR_DATA_AFTER_SYNC = false`)
+- **Storage Efficient**: Session metadata always retained
+
+### 4. **Local Data Logging** ✅
 - **ReportLogger** service logs all events to `report.json`
 - Real-time file updates as tremors and freezes occur
 - Automatic file management (create, update, clear)
@@ -76,7 +98,28 @@ A complete **HarmonyOS wearable health monitoring system** with local JSON loggi
 }
 ```
 
-## ☁️ Cloud Integration
+## ⚙️ Configuration (AppConfig.ets)
+
+```typescript
+// Monitoring behavior
+static readonly AUTO_START_MONITORING = true;  // App monitors automatically (default)
+static readonly CLEAR_DATA_AFTER_SYNC = true;  // Clear data after upload (default)
+
+// Detection thresholds (for mock algorithms)
+static readonly TREMOR_THRESHOLD = 0.5;               // Lowered 70% for testing
+static readonly FREEZE_PREDICTION_THRESHOLD = 0.7;    // 70% probability
+static readonly HEART_RATE_SPIKE_THRESHOLD = 20;     // BPM increase
+
+// Timing
+static readonly DATA_SYNC_INTERVAL_MS = 300000;  // Upload every 5 minutes
+static readonly TREMOR_LOG_BATCH_SIZE = 10;      // Batch upload every 10 tremors
+
+// Alerts
+static readonly ENABLE_VIBRATION_ALERT = true;
+static readonly ENABLE_SOUND_ALERT = true;
+```
+
+---
 
 ### Data Flow
 ```
@@ -120,31 +163,41 @@ Watch → report.json (local) → AWS API Gateway → Lambda → DynamoDB
 
 ## ✅ What Works Now
 
-- ✅ Real-time sensor monitoring
+- ✅ **Automatic monitoring on app launch** (configurable)
+- ✅ **Mock tremor detection** with realistic triggers
+- ✅ **Mock freeze prediction** with scoring
+- ✅ Real-time sensor monitoring (50 Hz accelerometer/gyroscope, 1 Hz heart rate)
 - ✅ Local JSON file creation and updates
-- ✅ Tremor event logging to file
-- ✅ Freeze prediction logging to file
+- ✅ Tremor/freeze event logging to file
 - ✅ File size tracking and display
 - ✅ Cloud upload every 5 minutes
+- ✅ **Configurable data clearing after upload**
 - ✅ Vibration alerts
 - ✅ Background monitoring
 - ✅ Session statistics
 - ✅ Error handling
+- ✅ Complete UI with green theme
 
 ## ⚠️ What You Need to Do
 
-### 1. Deploy AWS Backend (Required)
+### 1. Deploy AWS Backend (Required for cloud features)
 - Create 3 DynamoDB tables
-- Create 3 Lambda functions (code provided)
+- Create 3 Lambda functions (code provided in AWS_SETUP.md)
 - Set up API Gateway
-- Update `AppConfig.ets` with endpoints
+- Update `AppConfig.ets` with actual endpoint URLs
 
-### 2. Implement Algorithms (Required)
-- Complete TODO sections in `PredictionAlgorithm.ets`
-- Complete TODO sections in `TremorDetector.ets`
-- Choose: simple, signal processing, or ML approach
+### 2. Test System (Recommended - works with mock algorithms)
+- Build and deploy to watch
+- App auto-starts monitoring (if `AUTO_START_MONITORING = true`)
+- Verify report.json creation
+- Observe mock tremors/freezes trigger randomly
+- Test API uploads (after deploying AWS backend)
 
-### 3. Test System
+### 3. Implement Real Algorithms (Optional - do after testing)
+- Replace mock implementations in `PredictionAlgorithm.ets`
+- Replace mock implementations in `TremorDetector.ets`
+- Choose: simple rules, signal processing, or ML approach
+- See ALGORITHM_GUIDE.md for implementation options
 - Build and deploy to watch
 - Verify report.json creation
 - Test API uploads

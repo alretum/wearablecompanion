@@ -18,258 +18,389 @@ struct Index {
   }
 
   build() {
-    Column() {
-      // Header
-      Text('Parkinson\'s Monitor')
-        .fontSize(24)
-        .fontWeight(FontWeight.Bold)
-        .margin({ top: 20, bottom: 20 })
+    Scroll() {
+      Column() {
+        // Header with gradient background
+        Column() {
+          Text('Parkinson\'s')
+            .fontSize(20)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Color.White)
+          Text('Monitor')
+            .fontSize(28)
+            .fontWeight(900)
+            .fontColor(Color.White)
+            .margin({ top: -4 })
+        }
+        .width('100%')
+        .padding({ top: 16, bottom: 20, left: 16, right: 16 })
+        .linearGradient({
+          angle: 135,
+          colors: [[0x667EEA, 0.0], [0x764BA2, 1.0]]
+        })
+        .borderRadius({ bottomLeft: 24, bottomRight: 24 })
 
-      // Status Display
-      this.StatusCard()
+        Column() {
+          // Status Display
+          this.StatusCard()
 
-      // Sensor Data Display
-      this.SensorDataCard()
+          // Sensor Data Display
+          this.SensorDataCard()
 
-      // Alert Display
-      if (this.appState.latestPrediction !== null || this.appState.latestTremor !== null) {
-        this.AlertCard()
+          // Alert Display
+          if (this.appState.latestPrediction !== null || this.appState.latestTremor !== null) {
+            this.AlertCard()
+          }
+
+          // Statistics
+          this.StatisticsCard()
+
+          // Report Info
+          this.ReportInfoCard()
+
+          // Control Buttons
+          this.ControlButtons()
+        }
+        .padding(16)
       }
-
-      // Statistics
-      this.StatisticsCard()
-
-      // Report Info
-      this.ReportInfoCard()
-
-      // Control Buttons
-      this.ControlButtons()
+      .width('100%')
     }
     .width('100%')
     .height('100%')
-    .padding(16)
-    .backgroundColor('#F5F5F5')
+    .backgroundColor('#F8F9FA')
+    .scrollBar(BarState.Off)
   }
 
   @Builder
   StatusCard() {
-    Column() {
-      Text('Status')
-        .fontSize(16)
-        .fontWeight(FontWeight.Medium)
-        .margin({ bottom: 8 })
-
-      Text(this.getStatusText())
-        .fontSize(20)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(this.getStatusColor())
-        .margin({ bottom: 8 })
-
-      if (this.appState.errorMessage) {
-        Text(this.appState.errorMessage)
+    Row() {
+      Column() {
+        Text('Status')
           .fontSize(12)
-          .fontColor(Color.Red)
-          .margin({ top: 4 })
+          .fontColor('#8E8E93')
+          .margin({ bottom: 4 })
+
+        Text(this.getStatusText())
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.getStatusColor())
+
+        if (this.appState.errorMessage) {
+          Text(this.appState.errorMessage)
+            .fontSize(11)
+            .fontColor('#FF3B30')
+            .margin({ top: 6 })
+        }
       }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      // Status indicator circle
+      Circle({ width: 12, height: 12 })
+        .fill(this.getStatusColor())
     }
     .width('100%')
-    .padding(16)
+    .padding(20)
     .backgroundColor(Color.White)
-    .borderRadius(12)
-    .margin({ bottom: 12 })
+    .borderRadius(16)
+    .shadow({ radius: 8, color: 0x10000000, offsetX: 0, offsetY: 2 })
+    .margin({ bottom: 16 })
   }
 
   @Builder
   SensorDataCard() {
     Column() {
-      Text('Sensor Data')
-        .fontSize(16)
-        .fontWeight(FontWeight.Medium)
-        .margin({ bottom: 12 })
+      Text('Live Sensor Data')
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#1C1C1E')
+        .margin({ bottom: 16 })
 
       // Accelerometer
-      Row() {
-        Text('Accel:')
-          .fontSize(12)
-          .width('30%')
+      Column() {
+        Row() {
+          Text('📐')
+            .fontSize(16)
+            .margin({ right: 8 })
+          Text('Accelerometer')
+            .fontSize(13)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#3C3C43')
+        }
+        .margin({ bottom: 6 })
+        
         Text(this.formatAccelData())
           .fontSize(12)
+          .fontColor('#8E8E93')
           .fontFamily('monospace')
       }
       .width('100%')
-      .margin({ bottom: 4 })
+      .padding(12)
+      .backgroundColor('#F2F2F7')
+      .borderRadius(10)
+      .margin({ bottom: 10 })
 
       // Gyroscope
-      Row() {
-        Text('Gyro:')
-          .fontSize(12)
-          .width('30%')
+      Column() {
+        Row() {
+          Text('🔄')
+            .fontSize(16)
+            .margin({ right: 8 })
+          Text('Gyroscope')
+            .fontSize(13)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#3C3C43')
+        }
+        .margin({ bottom: 6 })
+        
         Text(this.formatGyroData())
           .fontSize(12)
+          .fontColor('#8E8E93')
           .fontFamily('monospace')
       }
       .width('100%')
-      .margin({ bottom: 4 })
+      .padding(12)
+      .backgroundColor('#F2F2F7')
+      .borderRadius(10)
+      .margin({ bottom: 10 })
 
       // Heart Rate
-      Row() {
-        Text('Heart:')
-          .fontSize(12)
-          .width('30%')
+      Column() {
+        Row() {
+          Text('❤️')
+            .fontSize(16)
+            .margin({ right: 8 })
+          Text('Heart Rate')
+            .fontSize(13)
+            .fontWeight(FontWeight.Medium)
+            .fontColor('#3C3C43')
+        }
+        .margin({ bottom: 6 })
+        
         Text(this.formatHeartRateData())
           .fontSize(12)
+          .fontColor('#8E8E93')
           .fontFamily('monospace')
       }
       .width('100%')
+      .padding(12)
+      .backgroundColor('#F2F2F7')
+      .borderRadius(10)
     }
     .width('100%')
-    .padding(16)
+    .padding(20)
     .backgroundColor(Color.White)
-    .borderRadius(12)
-    .margin({ bottom: 12 })
+    .borderRadius(16)
+    .shadow({ radius: 8, color: 0x10000000, offsetX: 0, offsetY: 2 })
+    .margin({ bottom: 16 })
   }
 
   @Builder
   AlertCard() {
     Column() {
-      Text('Recent Alerts')
-        .fontSize(16)
-        .fontWeight(FontWeight.Medium)
-        .margin({ bottom: 12 })
+      Text('⚠️ Active Alerts')
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#1C1C1E')
+        .margin({ bottom: 16 })
 
       // Freeze Prediction
       if (this.appState.latestPrediction !== null) {
         Column() {
-          Text('⚠️ Freeze Predicted')
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(Color.Orange)
-            .margin({ bottom: 4 })
-          
-          Text(`Probability: ${(this.appState.latestPrediction.probability * 100).toFixed(0)}%`)
-            .fontSize(12)
-            .margin({ bottom: 2 })
-          
-          Text(`Confidence: ${(this.appState.latestPrediction.confidence * 100).toFixed(0)}%`)
-            .fontSize(12)
-            .margin({ bottom: 2 })
+          Row() {
+            Text('⚠️')
+              .fontSize(24)
+              .margin({ right: 12 })
+            
+            Column() {
+              Text('Freeze Predicted')
+                .fontSize(15)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#FF9500')
+                .margin({ bottom: 4 })
+              
+              Text(`${(this.appState.latestPrediction.probability * 100).toFixed(0)}% probability`)
+                .fontSize(13)
+                .fontColor('#3C3C43')
+            }
+            .alignItems(HorizontalAlign.Start)
+          }
+          .width('100%')
+          .margin({ bottom: 12 })
+
+          Row() {
+            Text(`Confidence: ${(this.appState.latestPrediction.confidence * 100).toFixed(0)}%`)
+              .fontSize(11)
+              .fontColor('#8E8E93')
+          }
+          .margin({ bottom: 10 })
 
           Row() {
             if (this.appState.latestPrediction.indicators.tremor) {
-              Text('🔴 Tremor')
+              Text('Tremor')
                 .fontSize(10)
-                .margin({ right: 8 })
+                .fontColor(Color.White)
+                .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+                .backgroundColor('#FF3B30')
+                .borderRadius(12)
+                .margin({ right: 6 })
             }
             if (this.appState.latestPrediction.indicators.gaitDisturbance) {
-              Text('🔴 Gait')
+              Text('Gait Issue')
                 .fontSize(10)
-                .margin({ right: 8 })
+                .fontColor(Color.White)
+                .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+                .backgroundColor('#FF9500')
+                .borderRadius(12)
+                .margin({ right: 6 })
             }
             if (this.appState.latestPrediction.indicators.stressSpike) {
-              Text('🔴 Stress')
+              Text('Stress')
                 .fontSize(10)
+                .fontColor(Color.White)
+                .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+                .backgroundColor('#FF2D55')
+                .borderRadius(12)
             }
           }
-          .margin({ top: 4 })
         }
         .width('100%')
-        .padding(12)
+        .padding(16)
         .backgroundColor('#FFF3E0')
-        .borderRadius(8)
-        .margin({ bottom: 8 })
+        .borderRadius(12)
+        .border({ width: 2, color: '#FF9500' })
+        .margin({ bottom: 12 })
       }
 
       // Latest Tremor
       if (this.appState.latestTremor !== null) {
-        Column() {
-          Text('Tremor Detected')
-            .fontSize(14)
-            .fontWeight(FontWeight.Bold)
-            .fontColor('#FF6B6B')
-            .margin({ bottom: 4 })
+        Row() {
+          Text('🔴')
+            .fontSize(20)
+            .margin({ right: 12 })
           
-          Text(`Severity: ${this.appState.latestTremor.severity.toFixed(1)}/10`)
-            .fontSize(12)
-            .margin({ bottom: 2 })
-          
-          Text(`Duration: ${this.appState.latestTremor.duration}ms`)
-            .fontSize(12)
+          Column() {
+            Text('Tremor Detected')
+              .fontSize(15)
+              .fontWeight(FontWeight.Bold)
+              .fontColor('#FF3B30')
+              .margin({ bottom: 4 })
+            
+            Row() {
+              Text(`Severity ${this.appState.latestTremor.severity.toFixed(1)}/10`)
+                .fontSize(12)
+                .fontColor('#3C3C43')
+                .margin({ right: 12 })
+              
+              Text(`${this.appState.latestTremor.duration}ms`)
+                .fontSize(12)
+                .fontColor('#8E8E93')
+            }
+          }
+          .alignItems(HorizontalAlign.Start)
         }
         .width('100%')
-        .padding(12)
+        .padding(16)
         .backgroundColor('#FFE5E5')
-        .borderRadius(8)
+        .borderRadius(12)
+        .border({ width: 2, color: '#FF3B30' })
       }
     }
     .width('100%')
-    .padding(16)
+    .padding(20)
     .backgroundColor(Color.White)
-    .borderRadius(12)
-    .margin({ bottom: 12 })
+    .borderRadius(16)
+    .shadow({ radius: 12, color: 0x20000000, offsetX: 0, offsetY: 4 })
+    .margin({ bottom: 16 })
   }
 
   @Builder
   StatisticsCard() {
     Column() {
       Text('Session Statistics')
-        .fontSize(16)
-        .fontWeight(FontWeight.Medium)
-        .margin({ bottom: 12 })
+        .fontSize(14)
+        .fontWeight(FontWeight.Bold)
+        .fontColor('#1C1C1E')
+        .margin({ bottom: 16 })
 
       Row() {
         Column() {
           Text(`${this.appState.totalTremorsDetected}`)
-            .fontSize(24)
+            .fontSize(32)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#4CAF50')
+            .fontColor('#34C759')
           Text('Tremors')
-            .fontSize(12)
+            .fontSize(11)
+            .fontColor('#8E8E93')
             .margin({ top: 4 })
         }
         .width('50%')
+        .padding(16)
+        .backgroundColor('#F2F2F7')
+        .borderRadius(12)
 
         Column() {
           Text(`${this.appState.totalFreezesDetected}`)
-            .fontSize(24)
+            .fontSize(32)
             .fontWeight(FontWeight.Bold)
-            .fontColor('#FF9800')
+            .fontColor('#FF9500')
           Text('Freezes')
-            .fontSize(12)
+            .fontSize(11)
+            .fontColor('#8E8E93')
             .margin({ top: 4 })
         }
         .width('50%')
+        .padding(16)
+        .backgroundColor('#F2F2F7')
+        .borderRadius(12)
+        .margin({ left: 8 })
       }
       .width('100%')
 
       if (this.appState.monitoringStartTime > 0) {
-        Text(this.formatSessionDuration())
-          .fontSize(12)
-          .fontColor('#666')
-          .margin({ top: 12 })
+        Row() {
+          Text('⏱️')
+            .fontSize(14)
+            .margin({ right: 6 })
+          Text(this.formatSessionDuration())
+            .fontSize(12)
+            .fontColor('#8E8E93')
+        }
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
+        .margin({ top: 16 })
       }
     }
     .width('100%')
-    .padding(16)
+    .padding(20)
     .backgroundColor(Color.White)
-    .borderRadius(12)
-    .margin({ bottom: 12 })
+    .borderRadius(16)
+    .shadow({ radius: 8, color: 0x10000000, offsetX: 0, offsetY: 2 })
+    .margin({ bottom: 16 })
   }
 
   @Builder
   ReportInfoCard() {
     Column() {
-      Text('Report File')
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        .margin({ bottom: 8 })
+      Row() {
+        Text('📄')
+          .fontSize(16)
+          .margin({ right: 8 })
+        Text('Report File')
+          .fontSize(13)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C1C1E')
+      }
+      .margin({ bottom: 12 })
 
       this.ReportInfoContent()
     }
     .width('100%')
-    .padding(12)
-    .backgroundColor('#FFF9C4')
-    .borderRadius(8)
-    .margin({ bottom: 12 })
+    .padding(16)
+    .backgroundColor('#FFFBEA')
+    .borderRadius(12)
+    .border({ width: 1, color: '#FFE082' })
+    .margin({ bottom: 16 })
   }
 
   @Builder
@@ -279,28 +410,30 @@ struct Index {
         Column() {
           Text(`Session: ${this.monitoringService.getReportLogger()!.getReport()!.sessionId}`)
             .fontSize(10)
-            .fontColor('#666')
-            .margin({ bottom: 4 })
+            .fontColor('#8E8E93')
+            .margin({ bottom: 6 })
           
-          Text(`Logged: ${this.monitoringService.getReportLogger()!.getReport()!.tremors.length} tremors, ${this.monitoringService.getReportLogger()!.getReport()!.freezePredictions.length} predictions`)
-            .fontSize(11)
-            .fontColor('#333')
-            .margin({ bottom: 4 })
+          Text(`${this.monitoringService.getReportLogger()!.getReport()!.tremors.length} tremors, ${this.monitoringService.getReportLogger()!.getReport()!.freezePredictions.length} predictions logged`)
+            .fontSize(12)
+            .fontColor('#3C3C43')
+            .fontWeight(FontWeight.Medium)
+            .margin({ bottom: 6 })
           
-          Text(`File size: ${(this.monitoringService.getReportLogger()!.getReportSize() / 1024).toFixed(2)} KB`)
+          Text(`Size: ${(this.monitoringService.getReportLogger()!.getReportSize() / 1024).toFixed(2)} KB`)
             .fontSize(10)
-            .fontColor('#666')
+            .fontColor('#8E8E93')
         }
         .alignItems(HorizontalAlign.Start)
+        .width('100%')
       } else {
         Text('No active report')
-          .fontSize(11)
-          .fontColor('#999')
+          .fontSize(12)
+          .fontColor('#8E8E93')
       }
     } else {
       Text('Report logger not initialized')
-        .fontSize(11)
-        .fontColor('#999')
+        .fontSize(12)
+        .fontColor('#8E8E93')
     }
   }
 
@@ -311,18 +444,24 @@ struct Index {
           this.appState.status === MonitoringStatus.ERROR) {
         Button('Start Monitoring')
           .width('100%')
-          .height(48)
+          .height(52)
           .fontSize(16)
-          .backgroundColor('#4CAF50')
+          .fontWeight(FontWeight.Bold)
+          .backgroundColor('#34C759')
+          .borderRadius(14)
+          .shadow({ radius: 8, color: 0x2034C759, offsetX: 0, offsetY: 4 })
           .onClick(() => {
             this.monitoringService.startMonitoring();
           })
       } else {
         Button('Stop Monitoring')
           .width('100%')
-          .height(48)
+          .height(52)
           .fontSize(16)
-          .backgroundColor('#F44336')
+          .fontWeight(FontWeight.Bold)
+          .backgroundColor('#FF3B30')
+          .borderRadius(14)
+          .shadow({ radius: 8, color: 0x20FF3B30, offsetX: 0, offsetY: 4 })
           .onClick(() => {
             this.monitoringService.stopMonitoring();
           })
@@ -330,16 +469,18 @@ struct Index {
 
       Button('Test API Connection')
         .width('100%')
-        .height(40)
+        .height(44)
         .fontSize(14)
-        .backgroundColor('#2196F3')
-        .margin({ top: 8 })
+        .fontWeight(FontWeight.Medium)
+        .backgroundColor('#007AFF')
+        .borderRadius(14)
+        .margin({ top: 12 })
         .onClick(() => {
           this.testAPI();
         })
     }
     .width('100%')
-    .margin({ top: 12 })
+    .margin({ bottom: 20 })
   }
 
   // Helper methods

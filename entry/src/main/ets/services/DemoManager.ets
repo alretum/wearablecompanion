@@ -227,13 +227,18 @@ export class DemoManager {
       const timestamp = Date.now();
       const incidentId = `INC_${timestamp}`;
       
+      const location: LocationData = {
+        lat: AppConfig.EMERGENCY_LOCATION.lat,
+        lng: AppConfig.EMERGENCY_LOCATION.lng
+      };
+      
       const requestPayload: CallTriggerPayload = {
         phone: AppConfig.EMERGENCY_PHONE_NUMBER,
         incident_id: incidentId,
         user_id: 'USER_WATCH_001', // TODO: Replace with actual user ID
         severity: 0.85,
         confidence: 0.92,
-        location: AppConfig.EMERGENCY_LOCATION
+        location: location
       };
       
       hilog.info(DOMAIN, TAG, `Sending POST to ${AppConfig.EMERGENCY_CALL_ENDPOINT}`);

@@ -16,16 +16,11 @@ export class AppConfig {
   static readonly EMERGENCY_CALL_API_KEY = 'ParkinsonAtHackatum';
   
   // Emergency contact configuration - CHANGE THESE BEFORE BUILD
-  static readonly EMERGENCY_PHONE_NUMBER = '+4915165140425'; // Guardian's phone number
+  static readonly EMERGENCY_PHONE_NUMBER = '+491742167660'; // Guardian's phone number
   static readonly EMERGENCY_LOCATION: EmergencyLocation = {
     lat: 48.1351,  // Munich, Germany (TUM area)
     lng: 11.5820
   };
-}
-
-export interface EmergencyLocation {
-  lat: number;
-  lng: number;
   
   // Sensor sampling rates (Hz)
   static readonly ACCELEROMETER_RATE = 50; // 10 Hz - reduced for accuracy and stability
@@ -79,4 +74,9 @@ export interface EmergencyLocation {
   // Raw data includes gravity and will be processed offline if needed
   static readonly ENABLE_MANUAL_GRAVITY_COMPENSATION = false; // DISABLED - using raw values
   static readonly CALIBRATION_SAMPLES = 50; // Not used when compensation is disabled
+}
+
+export interface EmergencyLocation {
+  lat: number;
+  lng: number;
 }

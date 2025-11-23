@@ -1,16 +1,18 @@
 /**
- * TremorDetector - Detects and logs tremor events
+ * TremorDetector - Detects activity status and motion characteristics
  * 
- * TODO: Implement your tremor detection algorithm
+ * Uses advanced signal processing (MotionAnalyzer) to detect Parkinson's tremors (3-12 Hz)
+ * while filtering out voluntary movements (walking/activity).
  * 
- * Parkinson's tremor characteristics:
- * - Frequency: 4-6 Hz (resting tremor)
- * - Can affect hands, arms, legs, jaw
- * - Often asymmetric
- * - Pill-rolling motion in hands
+ * Implements battery-efficient "store-and-forward duty cycle":
+ * - Wakes every 60 seconds
+ * - Collects 10 seconds of data (500 samples at 50Hz)
+ * - Analyzes locally using algebraic filters
+ * - Reports as part of the 5-minute heart rate report
  */
 
-import { AccelerometerData, GyroscopeData, TremorEvent } from '../sensors/SensorData';
+import { AccelerometerData, GyroscopeData, TremorEvent, ActivityStatus } from '../sensors/SensorData';
+import { MotionAnalyzer } from './MotionAnalyzer';
 import { AppConfig } from '../config/AppConfig';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 
@@ -18,177 +20,127 @@ const DOMAIN = 0x0003;
 const TAG = 'TremorDetector';
 
 export class TremorDetector {
+  private motionAnalyzer: MotionAnalyzer;
   private accelBuffer: AccelerometerData[] = [];
-  private gyroBuffer: GyroscopeData[] = [];
-  private currentTremor: TremorEvent | null = null;
-  private tremorStartTime: number = 0;
   private detectedTremors: TremorEvent[] = [];
+  private lastReportTime: number = 0;
+  private static readonly REPORT_INTERVAL_MS = 60000; // Report every 60 seconds (1 minute)
+  private static readonly BURST_DURATION_MS = 10000;  // Collect 10 seconds of data
+  private static readonly TARGET_SAMPLES = 500;        // 500 samples at 50Hz
+  
+  private isCollectingBurst: boolean = false;
+  private burstStartTime: number = 0;
 
   constructor() {
-    hilog.info(DOMAIN, TAG, 'TremorDetector initialized');
+    this.motionAnalyzer = new MotionAnalyzer();
+    hilog.info(DOMAIN, TAG, 'TremorDetector initialized - Advanced tremor detection with duty cycle');
   }
 
   /**
-   * Process sensor data to detect tremors
+   * Process sensor data to detect activity and motion characteristics
    * 
-   * @param accel - Current accelerometer reading
-   * @param gyro - Current gyroscope reading
-   * @returns TremorEvent if tremor is detected and complete, null otherwise
+   * Uses duty cycle: collects data for 10s every 60s, then analyzes using MotionAnalyzer
+   * 
+   * @param accel - Current accelerometer reading (raw values with gravity)
+   * @param gyro - Current gyroscope reading (not used in new algorithm)
+   * @returns TremorEvent with activity status and motion metrics, or null if not ready
    */
   public detectTremor(accel: AccelerometerData, gyro: GyroscopeData): TremorEvent | null {
-    // Add to buffers
-    this.accelBuffer.push(accel);
-    this.gyroBuffer.push(gyro);
-
-    // Maintain buffer size
-    if (this.accelBuffer.length > AppConfig.SENSOR_BUFFER_SIZE) {
-      this.accelBuffer.shift();
-    }
-    if (this.gyroBuffer.length > AppConfig.SENSOR_BUFFER_SIZE) {
-      this.gyroBuffer.shift();
-    }
-
-    // Need sufficient data
-    if (this.accelBuffer.length < 20) {
-      return null;
-    }
-
-    // TODO: IMPLEMENT YOUR TREMOR DETECTION ALGORITHM HERE
-    // Consider using:
-    // - FFT to detect 4-6 Hz frequency components
-    // - Peak detection for rhythmic patterns
-    // - Magnitude thresholding for significance
+    const now = Date.now();
     
-    const isTremoring = this.analyzeTremorPattern();
-
-    if (isTremoring) {
-      if (this.currentTremor === null) {
-        // Start new tremor event
-        this.tremorStartTime = accel.timestamp;
-        this.currentTremor = {
-          severity: 0,
-          duration: 0,
-          timestamp: this.tremorStartTime
-        };
-        hilog.info(DOMAIN, TAG, 'Tremor started');
-      }
-
-      // Update tremor metrics (no raw sensor data stored)
-      this.currentTremor.duration = accel.timestamp - this.tremorStartTime;
-      this.currentTremor.severity = this.calculateTremorSeverity();
-
-    } else if (this.currentTremor !== null) {
-      // Tremor ended
-      const completedTremor = this.currentTremor;
-      this.detectedTremors.push(completedTremor);
-      
-      hilog.info(DOMAIN, TAG, 
-        `Tremor ended: duration=${completedTremor.duration}ms, severity=${completedTremor.severity.toFixed(2)}`);
-      
-      this.currentTremor = null;
-      this.tremorStartTime = 0;
-      
-      return completedTremor;
+    // Check if it's time to start a new burst
+    if (!this.isCollectingBurst && (now - this.lastReportTime >= TremorDetector.REPORT_INTERVAL_MS)) {
+      this.startBurst(now);
     }
-
+    
+    // If collecting burst, add data to buffer
+    if (this.isCollectingBurst) {
+      this.accelBuffer.push(accel);
+      
+      // Check if burst duration is complete
+      const burstElapsed = now - this.burstStartTime;
+      if (burstElapsed >= TremorDetector.BURST_DURATION_MS) {
+        return this.endBurst(now);
+      }
+    }
+    
     return null;
   }
 
   /**
-   * Mock implementation: Simple threshold-based detection with random triggering
-   * Detects 4-6 Hz oscillations characteristic of Parkinson's tremor
+   * Start a new data collection burst
    */
-  private analyzeTremorPattern(): boolean {
-    const windowSize = 20;
-    if (this.accelBuffer.length < windowSize) return false;
-
-    const recentAccel = this.accelBuffer.slice(-windowSize);
-    
-    // Calculate magnitude of acceleration vector
-    const magnitudes = recentAccel.map(a => 
-      Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z)
-    );
-
-    // Check for high frequency oscillations
-    const variance = this.calculateVariance(magnitudes);
-    const peakCount = this.countPeaks(magnitudes);
-    
-    // Mock: Lower threshold for testing + random chance
-    // Real tremor: 4-6 Hz would have 1-2 peaks in 20 samples at 50 Hz
-    const hasOscillation = peakCount >= 1 && peakCount <= 3;
-    const hasSignificantAmplitude = variance > (AppConfig.TREMOR_THRESHOLD * 0.3); // Lower threshold for testing
-    
-    // Mock: Add 5% random chance to trigger tremor for testing
-    const randomTrigger = Math.random() < 0.05;
-
-    return (hasOscillation && hasSignificantAmplitude) || randomTrigger;
+  private startBurst(timestamp: number): void {
+    this.isCollectingBurst = true;
+    this.burstStartTime = timestamp;
+    this.accelBuffer = [];
+    hilog.info(DOMAIN, TAG, 'Starting 10s data burst');
   }
 
   /**
-   * Mock implementation: Calculate tremor severity (0-10 scale)
-   * Based on amplitude and duration from buffered sensor data
+   * End the burst and analyze collected data
    */
-  private calculateTremorSeverity(): number {
-    if (this.currentTremor === null || this.accelBuffer.length === 0) {
-      return 0;
+  private endBurst(timestamp: number): TremorEvent | null {
+    this.isCollectingBurst = false;
+    this.lastReportTime = timestamp;
+    
+    hilog.info(DOMAIN, TAG, 
+      `Burst complete. Collected ${this.accelBuffer.length} samples (target: ${TremorDetector.TARGET_SAMPLES})`);
+    
+    // Analyze the burst using MotionAnalyzer
+    if (this.accelBuffer.length < 50) {
+      hilog.warn(DOMAIN, TAG, 'Insufficient samples for analysis');
+      return null;
     }
-
-    // Calculate based on amplitude from recent buffer
-    const magnitudes = this.accelBuffer.map(a =>
-      Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z)
-    );
-
-    const maxMagnitude = Math.max(...magnitudes);
-    const avgMagnitude = magnitudes.reduce((sum, m) => sum + m, 0) / magnitudes.length;
     
-    // Mock: Normalize to 0-10 scale with some randomness for testing
-    const amplitudeSeverity = Math.min((avgMagnitude / 2.0) * 10, 10);
-    const durationFactor = Math.min(this.currentTremor.duration / 1000, 1); // Up to 1 second
+    // Extract X, Y, Z arrays from buffer
+    const xData = this.accelBuffer.map(a => a.x);
+    const yData = this.accelBuffer.map(a => a.y);
+    const zData = this.accelBuffer.map(a => a.z);
     
-    // Combine factors: 70% amplitude, 30% duration
-    let severity = (amplitudeSeverity * 0.7) + (durationFactor * 3);
+    // Analyze using MotionAnalyzer
+    const result = this.motionAnalyzer.analyze(xData, yData, zData);
     
-    // Mock: Add slight randomness for testing (±1)
-    severity += (Math.random() - 0.5) * 2;
-    
-    return Math.max(0, Math.min(10, severity));
-  }
-
-  /**
-   * Helper: Count peaks in signal for frequency analysis
-   */
-  private countPeaks(values: number[]): number {
-    if (values.length < 3) return 0;
-    
-    let peaks = 0;
-    for (let i = 1; i < values.length - 1; i++) {
-      if (values[i] > values[i - 1] && values[i] > values[i + 1]) {
-        peaks++;
-      }
+    if (!result.isValid) {
+      hilog.warn(DOMAIN, TAG, 'Analysis result invalid');
+      return null;
     }
-    return peaks;
-  }
-
-  /**
-   * Helper: Calculate variance
-   */
-  private calculateVariance(values: number[]): number {
-    if (values.length === 0) return 0;
     
-    const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-    const squaredDiffs = values.map(val => Math.pow(val - mean, 2));
-    return squaredDiffs.reduce((sum, val) => sum + val, 0) / values.length;
+    // Filter based on tremor detection thresholds
+    // Motion must meet or exceed BOTH magnitude and frequency thresholds to be classified as tremor
+    if (result.status === 'sedentary' && 
+        (result.magnitude < AppConfig.TREMOR_MIN_MAGNITUDE || result.frequency < AppConfig.TREMOR_MIN_FREQUENCY)) {
+      hilog.info(DOMAIN, TAG, 
+        `Motion below tremor threshold (magnitude=${result.magnitude.toFixed(1)} < ${AppConfig.TREMOR_MIN_MAGNITUDE} or frequency=${result.frequency.toFixed(1)} < ${AppConfig.TREMOR_MIN_FREQUENCY} Hz) - not classified as tremor`);
+      return null;
+    }
+    
+    // Convert to TremorEvent
+    const status = result.status === 'active' ? ActivityStatus.ACTIVE : ActivityStatus.SEDENTARY;
+    
+    const tremorEvent: TremorEvent = {
+      status: status,
+      magnitude: result.magnitude,
+      frequency: result.frequency,
+      timestamp: timestamp
+    };
+
+    this.detectedTremors.push(tremorEvent);
+    hilog.info(DOMAIN, TAG, 
+      `Tremor detected: status=${status}, magnitude=${result.magnitude.toFixed(1)}, frequency=${result.frequency.toFixed(1)} Hz`);
+
+    return tremorEvent;
   }
 
   /**
-   * Get all detected tremors (for batching to server)
+   * Get all detected tremors (for reference)
    */
   public getDetectedTremors(): TremorEvent[] {
     return [...this.detectedTremors];
   }
 
   /**
-   * Clear detected tremors after sending to server
+   * Clear detected tremors
    */
   public clearDetectedTremors(): void {
     this.detectedTremors = [];
@@ -200,10 +152,10 @@ export class TremorDetector {
    */
   public reset(): void {
     this.accelBuffer = [];
-    this.gyroBuffer = [];
-    this.currentTremor = null;
-    this.tremorStartTime = 0;
     this.detectedTremors = [];
+    this.lastReportTime = 0;
+    this.isCollectingBurst = false;
+    this.burstStartTime = 0;
     hilog.info(DOMAIN, TAG, 'Detector reset');
   }
 

@@ -43,6 +43,10 @@
     {
       "name": "permission_reason_location",
       "value": "This app needs location access to record GPS coordinates when freeze events occur for emergency assistance"
+    },
+    {
+      "name": "background_service_desc",
+      "value": "Continuous monitoring service for Parkinson's tremor and freeze detection"
     }
   ]
 }

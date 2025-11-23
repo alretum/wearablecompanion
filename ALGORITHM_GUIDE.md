@@ -8,7 +8,9 @@ You need to implement the actual detection logic in two files:
 1. `entry/src/main/ets/algorithms/PredictionAlgorithm.ets` - Freeze prediction
 2. `entry/src/main/ets/algorithms/TremorDetector.ets` - Tremor detection
 
-## 1. Tremor Detection (`TremorDetector.ets`)
+## 1. Activity and Motion Detection (`TremorDetector.ets`)
+
+**Note**: This component detects activity status and motion characteristics. The data (status, magnitude, frequency) is reported as part of the 5-minute heart rate report, NOT as separate incident reports.
 
 ### Key Characteristics of Parkinson's Tremor
 

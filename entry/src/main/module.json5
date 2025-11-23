@@ -95,6 +95,11 @@
         "startWindowIcon": "$media:startIcon",
         "startWindowBackground": "$color:start_window_background",
         "exported": true,
+        "continuable": true,
+        "backgroundModes": [
+          "dataTransfer",
+          "location"
+        ],
         "skills": [
           {
             "entities": [

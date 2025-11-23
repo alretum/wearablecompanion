@@ -5,7 +5,10 @@ import { AppState, MonitoringStatus } from '../sensors/SensorData';
 @Component
 struct Index {
   @State appState: AppState = new AppState();
+  @State medicationConfirmation: boolean = false;
   private monitoringService: MonitoringService = MonitoringService.getInstance();
+  private uiUpdateTimer: number = -1;
+  private confirmationTimer: number = -1;
 
   aboutToAppear(): void {
     // Register for state updates
@@ -15,6 +18,23 @@ struct Index {
     
     // Get initial state
     this.appState = this.monitoringService.getState();
+    
+    // Start periodic UI updates to refresh sensor data display
+    this.uiUpdateTimer = setInterval(() => {
+      this.appState = this.monitoringService.getState();
+    }, 1000); // Update every second
+  }
+  
+  aboutToDisappear(): void {
+    // Clean up timers
+    if (this.uiUpdateTimer !== -1) {
+      clearInterval(this.uiUpdateTimer);
+      this.uiUpdateTimer = -1;
+    }
+    if (this.confirmationTimer !== -1) {
+      clearTimeout(this.confirmationTimer);
+      this.confirmationTimer = -1;
+    }
   }
 
   build() {
@@ -41,11 +61,16 @@ struct Index {
         .borderRadius({ bottomLeft: 24, bottomRight: 24 })
 
         Column() {
+          // Medication Button
+          this.MedicationButton()
+
+          // Medication Confirmation
+          if (this.medicationConfirmation) {
+            this.MedicationConfirmation()
+          }
+
           // Status Display
           this.StatusCard()
-
-          // Sensor Data Display
-          this.SensorDataCard()
 
           // Alert Display
           if (this.appState.latestPrediction !== null || this.appState.latestTremor !== null) {
@@ -54,9 +79,6 @@ struct Index {
 
           // Statistics
           this.StatisticsCard()
-
-          // Report Info
-          this.ReportInfoCard()
 
           // Control Buttons
           this.ControlButtons()
@@ -69,6 +91,59 @@ struct Index {
     .height('100%')
     .backgroundColor('#F0F8F4')
     .scrollBar(BarState.Off)
+  }
+
+  @Builder
+  MedicationButton() {
+    Button('💊 Medication Taken')
+      .width('100%')
+      .height(52)
+      .fontSize(16)
+      .fontWeight(FontWeight.Bold)
+      .fontColor(Color.White)
+      .backgroundColor('#2196F3')
+      .borderRadius(16)
+      .shadow({ radius: 12, color: 0x202196F3, offsetX: 0, offsetY: 4 })
+      .margin({ top: 16, bottom: 12 })
+      .onClick(async () => {
+        const success = await this.recordMedication();
+        if (success) {
+          this.showMedicationConfirmation();
+        }
+      })
+  }
+
+  @Builder
+  MedicationConfirmation() {
+    Row() {
+      Text('✓')
+        .fontSize(24)
+        .fontColor('#4CAF50')
+        .margin({ right: 12 })
+      
+      Column() {
+        Text('Medication Recorded')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C1C1E')
+        Text(new Date().toLocaleTimeString())
+          .fontSize(12)
+          .fontColor('#8E8E93')
+          .margin({ top: 2 })
+      }
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .padding(20)
+    .backgroundColor('#E8F5E9')
+    .borderRadius(16)
+    .border({ width: 2, color: '#4CAF50' })
+    .shadow({ radius: 8, color: 0x204CAF50, offsetX: 0, offsetY: 2 })
+    .margin({ bottom: 16 })
+    .animation({
+      duration: 300,
+      curve: Curve.EaseInOut
+    })
   }
 
   @Builder
@@ -107,93 +182,7 @@ struct Index {
     .margin({ bottom: 16 })
   }
 
-  @Builder
-  SensorDataCard() {
-    Column() {
-      Text('Live Sensor Data')
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1C1C1E')
-        .margin({ bottom: 16 })
 
-      // Accelerometer
-      Column() {
-        Row() {
-          Text('📐')
-            .fontSize(16)
-            .margin({ right: 8 })
-          Text('Accelerometer')
-            .fontSize(13)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#3C3C43')
-        }
-        .margin({ bottom: 6 })
-        
-        Text(this.formatAccelData())
-          .fontSize(12)
-          .fontColor('#8E8E93')
-          .fontFamily('monospace')
-      }
-      .width('100%')
-      .padding(12)
-      .backgroundColor('#E8F5E9')
-      .borderRadius(10)
-      .margin({ bottom: 10 })
-
-      // Gyroscope
-      Column() {
-        Row() {
-          Text('🔄')
-            .fontSize(16)
-            .margin({ right: 8 })
-          Text('Gyroscope')
-            .fontSize(13)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#3C3C43')
-        }
-        .margin({ bottom: 6 })
-        
-        Text(this.formatGyroData())
-          .fontSize(12)
-          .fontColor('#8E8E93')
-          .fontFamily('monospace')
-      }
-      .width('100%')
-      .padding(12)
-      .backgroundColor('#E8F5E9')
-      .borderRadius(10)
-      .margin({ bottom: 10 })
-
-      // Heart Rate
-      Column() {
-        Row() {
-          Text('❤️')
-            .fontSize(16)
-            .margin({ right: 8 })
-          Text('Heart Rate')
-            .fontSize(13)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#3C3C43')
-        }
-        .margin({ bottom: 6 })
-        
-        Text(this.formatHeartRateData())
-          .fontSize(12)
-          .fontColor('#8E8E93')
-          .fontFamily('monospace')
-      }
-      .width('100%')
-      .padding(12)
-      .backgroundColor('#E8F5E9')
-      .borderRadius(10)
-    }
-    .width('100%')
-    .padding(20)
-    .backgroundColor(Color.White)
-    .borderRadius(16)
-    .shadow({ radius: 8, color: 0x10000000, offsetX: 0, offsetY: 2 })
-    .margin({ bottom: 16 })
-  }
 
   @Builder
   AlertCard() {
@@ -275,35 +264,42 @@ struct Index {
       // Latest Tremor
       if (this.appState.latestTremor !== null) {
         Row() {
-          Text('🔴')
+          Text('📊')
             .fontSize(20)
             .margin({ right: 12 })
           
           Column() {
-            Text('Tremor Detected')
+            Text('Activity Status')
               .fontSize(15)
               .fontWeight(FontWeight.Bold)
-              .fontColor('#FF3B30')
+              .fontColor('#FF9800')
               .margin({ bottom: 4 })
             
             Row() {
-              Text(`Severity ${this.appState.latestTremor.severity.toFixed(1)}/10`)
+              Text(`${this.appState.latestTremor.status.toUpperCase()}`)
                 .fontSize(12)
                 .fontColor('#3C3C43')
                 .margin({ right: 12 })
               
-              Text(`${this.appState.latestTremor.duration}ms`)
+              Text(`${this.appState.latestTremor.magnitude.toFixed(2)} m/s²`)
                 .fontSize(12)
                 .fontColor('#8E8E93')
+                .margin({ right: 12 })
+              
+              if (this.appState.latestTremor.frequency > 0) {
+                Text(`${this.appState.latestTremor.frequency.toFixed(1)} Hz`)
+                  .fontSize(12)
+                  .fontColor('#8E8E93')
+              }
             }
           }
           .alignItems(HorizontalAlign.Start)
         }
         .width('100%')
         .padding(16)
-        .backgroundColor('#FFE5E5')
+        .backgroundColor('#FFF3E0')
         .borderRadius(12)
-        .border({ width: 2, color: '#FF3B30' })
+        .border({ width: 2, color: '#FF9800' })
       }
     }
     .width('100%')
@@ -379,63 +375,7 @@ struct Index {
     .margin({ bottom: 16 })
   }
 
-  @Builder
-  ReportInfoCard() {
-    Column() {
-      Row() {
-        Text('📄')
-          .fontSize(16)
-          .margin({ right: 8 })
-        Text('Report File')
-          .fontSize(13)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1C1C1E')
-      }
-      .margin({ bottom: 12 })
 
-      this.ReportInfoContent()
-    }
-    .width('100%')
-    .padding(16)
-    .backgroundColor('#E8F5E9')
-    .borderRadius(12)
-    .border({ width: 1, color: '#81C784' })
-    .margin({ bottom: 16 })
-  }
-
-  @Builder
-  ReportInfoContent() {
-    if (this.monitoringService.getReportLogger()) {
-      if (this.monitoringService.getReportLogger()!.getReport()) {
-        Column() {
-          Text(`Session: ${this.monitoringService.getReportLogger()!.getReport()!.sessionId}`)
-            .fontSize(10)
-            .fontColor('#8E8E93')
-            .margin({ bottom: 6 })
-          
-          Text(`${this.monitoringService.getReportLogger()!.getReport()!.tremors.length} tremors, ${this.monitoringService.getReportLogger()!.getReport()!.freezePredictions.length} predictions logged`)
-            .fontSize(12)
-            .fontColor('#3C3C43')
-            .fontWeight(FontWeight.Medium)
-            .margin({ bottom: 6 })
-          
-          Text(`Size: ${(this.monitoringService.getReportLogger()!.getReportSize() / 1024).toFixed(2)} KB`)
-            .fontSize(10)
-            .fontColor('#8E8E93')
-        }
-        .alignItems(HorizontalAlign.Start)
-        .width('100%')
-      } else {
-        Text('No active report')
-          .fontSize(12)
-          .fontColor('#8E8E93')
-      }
-    } else {
-      Text('Report logger not initialized')
-        .fontSize(12)
-        .fontColor('#8E8E93')
-    }
-  }
 
   @Builder
   ControlButtons() {
@@ -444,46 +384,53 @@ struct Index {
           this.appState.status === MonitoringStatus.ERROR) {
         Button('Start Monitoring')
           .width('100%')
-          .height(52)
-          .fontSize(16)
+          .height(56)
+          .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .backgroundColor('#2E7D32')
-          .borderRadius(14)
-          .shadow({ radius: 8, color: 0x202E7D32, offsetX: 0, offsetY: 4 })
+          .borderRadius(16)
+          .shadow({ radius: 12, color: 0x202E7D32, offsetX: 0, offsetY: 4 })
           .onClick(() => {
             this.monitoringService.startMonitoring();
           })
       } else {
         Button('Stop Monitoring')
           .width('100%')
-          .height(52)
-          .fontSize(16)
+          .height(56)
+          .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .backgroundColor('#FF3B30')
-          .borderRadius(14)
-          .shadow({ radius: 8, color: 0x20FF3B30, offsetX: 0, offsetY: 4 })
+          .borderRadius(16)
+          .shadow({ radius: 12, color: 0x20FF3B30, offsetX: 0, offsetY: 4 })
           .onClick(() => {
             this.monitoringService.stopMonitoring();
           })
       }
-
-      Button('Test API Connection')
-        .width('100%')
-        .height(44)
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        .backgroundColor('#4CAF50')
-        .borderRadius(14)
-        .margin({ top: 12 })
-        .onClick(() => {
-          this.testAPI();
-        })
     }
     .width('100%')
     .margin({ bottom: 20 })
   }
 
   // Helper methods
+  private async recordMedication(): Promise<boolean> {
+    return await this.monitoringService.recordMedicationIntake();
+  }
+
+  private showMedicationConfirmation(): void {
+    this.medicationConfirmation = true;
+    
+    // Clear existing timer if any
+    if (this.confirmationTimer !== -1) {
+      clearTimeout(this.confirmationTimer);
+    }
+    
+    // Hide confirmation after 3 seconds
+    this.confirmationTimer = setTimeout(() => {
+      this.medicationConfirmation = false;
+      this.confirmationTimer = -1;
+    }, 3000);
+  }
+
   private getStatusText(): string {
     switch (this.appState.status) {
       case MonitoringStatus.STOPPED:
@@ -514,29 +461,6 @@ struct Index {
     }
   }
 
-  private formatAccelData(): string {
-    if (this.appState.currentAccel === null) {
-      return 'No data';
-    }
-    const a = this.appState.currentAccel;
-    return `x:${a.x.toFixed(2)} y:${a.y.toFixed(2)} z:${a.z.toFixed(2)}`;
-  }
-
-  private formatGyroData(): string {
-    if (this.appState.currentGyro === null) {
-      return 'No data';
-    }
-    const g = this.appState.currentGyro;
-    return `x:${g.x.toFixed(2)} y:${g.y.toFixed(2)} z:${g.z.toFixed(2)}`;
-  }
-
-  private formatHeartRateData(): string {
-    if (this.appState.currentHeartRate === null) {
-      return 'No data';
-    }
-    return `${this.appState.currentHeartRate.bpm} BPM`;
-  }
-
   private formatSessionDuration(): string {
     if (this.appState.monitoringStartTime === 0) {
       return '';
@@ -553,11 +477,5 @@ struct Index {
     } else {
       return `Session: ${seconds}s`;
     }
-  }
-
-  private async testAPI(): Promise<void> {
-    const results = await this.monitoringService.testAPIConnectivity();
-    // TODO: Display results in a dialog
-    console.log('API Test Results:', results);
   }
 }

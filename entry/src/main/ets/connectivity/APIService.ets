@@ -14,13 +14,16 @@ import { TremorEvent, FreezePrediction } from '../sensors/SensorData';
 import { HeartRateReport } from '../services/HeartRateLogger';
 import { AppConfig } from '../config/AppConfig';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { APILogger, APILogStats } from '../services/APILogger';
+import { common } from '@kit.AbilityKit';
 
 const DOMAIN = 0x0004;
 const TAG = 'APIService';
 
 interface HttpHeaders {
   'Content-Type': string;
-  'Accept': string;
+  'Accept'?: string;
+  'x-api-key'?: string;
 }
 
 interface HttpResponseData {
@@ -72,15 +75,51 @@ export interface SyncDataPayload {
   data: SyncDataPayloadData;
 }
 
+export interface TremorDataPayload {
+  status: string;
+  magnitude: number;
+  frequency: number;
+}
+
+export interface HeartRateMinuteData {
+  timestamp: string;
+  avgBpm: number;
+  minBpm: number;
+  maxBpm: number;
+  tremorData?: TremorDataPayload | null;
+}
+
+export interface HeartRateUploadPayload {
+  userId: string;
+  deviceId: string;
+  reportTimestamp: string;
+  minuteData: HeartRateMinuteData[];
+}
+
+export interface MedicationIntakePayload {
+  userId: string;
+  deviceId: string;
+  medicationTime: string;
+}
+
 export class APIService {
   private deviceId: string;
   private userId: string; // TODO: Implement user authentication
+  private apiLogger: APILogger | null = null;
 
   constructor() {
     // TODO: Get actual device ID and user ID from authentication system
     this.deviceId = 'DEVICE_' + Date.now(); // Placeholder
     this.userId = 'USER_PLACEHOLDER'; // Replace with actual user ID
     hilog.info(DOMAIN, TAG, 'APIService initialized');
+  }
+
+  /**
+   * Initialize API logger with context
+   */
+  public initializeLogger(context: common.UIAbilityContext, userId: string, deviceId: string): void {
+    this.apiLogger = new APILogger(context, userId, deviceId);
+    hilog.info(DOMAIN, TAG, 'API logger initialized');
   }
 
   /**
@@ -179,36 +218,154 @@ export class APIService {
         report
       );
 
+      // Log successful API call
+      this.apiLogger?.logAPICall(
+        AppConfig.SYNC_DATA_ENDPOINT,
+        'POST',
+        report,
+        true,
+        200,
+        JSON.stringify(response)
+      );
+
       hilog.info(DOMAIN, TAG, `Report uploaded successfully: ${JSON.stringify(response)}`);
       return true;
 
     } catch (error) {
+      // Log failed API call
+      const report = JSON.parse(reportJSON) as Object;
+      this.apiLogger?.logAPICall(
+        AppConfig.SYNC_DATA_ENDPOINT,
+        'POST',
+        report,
+        false,
+        undefined,
+        undefined,
+        String(error)
+      );
+
       hilog.error(DOMAIN, TAG, `Failed to upload report: ${error}`);
       return false;
     }
   }
 
   /**
-   * Upload heart rate report to AWS Lambda
+   * Upload heart rate report to Supabase function
    * Endpoint: POST /upload-heartrate
    * 
    * This sends 5 minutes of aggregated heart rate data (1 entry per minute)
+   * Each minute includes tremor/activity data if available
    */
   public async uploadHeartRateReport(report: HeartRateReport): Promise<boolean> {
+    // Transform report to match API format (including tremor data)
+    const payload: HeartRateUploadPayload = {
+      userId: report.userId,
+      deviceId: report.deviceId,
+      reportTimestamp: new Date(report.reportTimestamp).toISOString(),
+      minuteData: report.minutes.map((minute): HeartRateMinuteData => {
+        const tremorPayload: TremorDataPayload | null = minute.tremorData ? {
+          status: minute.tremorData.status,
+          magnitude: minute.tremorData.magnitude,
+          frequency: minute.tremorData.frequency
+        } : null;
+        
+        return {
+          timestamp: new Date(minute.timestamp).toISOString(),
+          avgBpm: minute.avgBpm,
+          minBpm: minute.minBpm,
+          maxBpm: minute.maxBpm,
+          tremorData: tremorPayload
+        };
+      })
+    };
+
     try {
       hilog.info(DOMAIN, TAG, `Uploading heart rate report with ${report.minutes.length} minutes of data`);
       
-      const response = await this.sendRequest(
+      const response = await this.sendHeartRateRequest(
         AppConfig.HEART_RATE_ENDPOINT,
         http.RequestMethod.POST,
-        report
+        payload
+      );
+
+      // Log successful API call
+      this.apiLogger?.logAPICall(
+        AppConfig.HEART_RATE_ENDPOINT,
+        'POST',
+        payload,
+        true,
+        200,
+        JSON.stringify(response)
       );
 
       hilog.info(DOMAIN, TAG, `Heart rate report uploaded successfully: ${JSON.stringify(response)}`);
       return true;
 
     } catch (error) {
+      // Log failed API call
+      this.apiLogger?.logAPICall(
+        AppConfig.HEART_RATE_ENDPOINT,
+        'POST',
+        payload,
+        false,
+        undefined,
+        undefined,
+        String(error)
+      );
+
       hilog.error(DOMAIN, TAG, `Failed to upload heart rate report: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Record medication intake event
+   * Endpoint: POST /medication-intake
+   * 
+   * Sends a timestamp when the user takes their medication
+   */
+  public async recordMedicationIntake(): Promise<boolean> {
+    const payload: MedicationIntakePayload = {
+      userId: this.userId,
+      deviceId: this.deviceId,
+      medicationTime: new Date().toISOString()
+    };
+
+    try {
+      hilog.info(DOMAIN, TAG, 'Recording medication intake');
+      
+      const response = await this.sendHeartRateRequest(
+        AppConfig.MEDICATION_INTAKE_ENDPOINT,
+        http.RequestMethod.POST,
+        payload
+      );
+
+      // Log successful API call
+      this.apiLogger?.logAPICall(
+        AppConfig.MEDICATION_INTAKE_ENDPOINT,
+        'POST',
+        payload,
+        true,
+        200,
+        JSON.stringify(response)
+      );
+
+      hilog.info(DOMAIN, TAG, `Medication intake recorded successfully: ${JSON.stringify(response)}`);
+      return true;
+
+    } catch (error) {
+      // Log failed API call
+      this.apiLogger?.logAPICall(
+        AppConfig.MEDICATION_INTAKE_ENDPOINT,
+        'POST',
+        payload,
+        false,
+        undefined,
+        undefined,
+        String(error)
+      );
+
+      hilog.error(DOMAIN, TAG, `Failed to record medication intake: ${error}`);
       return false;
     }
   }
@@ -261,6 +418,60 @@ export class APIService {
       hilog.error(DOMAIN, TAG, `Failed to sync data: ${error}`);
       return false;
     }
+  }
+
+  /**
+   * Specialized HTTP request handler for heart rate endpoint with custom headers
+   */
+  private async sendHeartRateRequest(
+    url: string,
+    method: http.RequestMethod,
+    data?: Object
+  ): Promise<HttpResponseData> {
+    return new Promise((resolve, reject) => {
+      const httpRequest = http.createHttp();
+
+      const headers: HttpHeaders = {
+        'Content-Type': 'application/json',
+        'x-api-key': 'ParkinsonAtHackatum'
+      };
+
+      const requestOptions: http.HttpRequestOptions = {
+        method: method,
+        header: headers,
+        extraData: data ? JSON.stringify(data) : undefined,
+        expectDataType: http.HttpDataType.STRING,
+        connectTimeout: 10000,
+        readTimeout: 10000
+      };
+
+      httpRequest.request(url, requestOptions, (err: Error, data: http.HttpResponse) => {
+        if (err) {
+          hilog.error(DOMAIN, TAG, `HTTP request failed: ${JSON.stringify(err)}`);
+          httpRequest.destroy();
+          reject(err);
+          return;
+        }
+
+        if (data.responseCode !== 200) {
+          const errorMsg = `HTTP ${data.responseCode}: ${data.result}`;
+          hilog.error(DOMAIN, TAG, errorMsg);
+          httpRequest.destroy();
+          reject(new Error(errorMsg));
+          return;
+        }
+
+        try {
+          const response = JSON.parse(data.result as string) as HttpResponseData;
+          httpRequest.destroy();
+          resolve(response);
+        } catch (parseError) {
+          hilog.error(DOMAIN, TAG, `Failed to parse response: ${parseError}`);
+          httpRequest.destroy();
+          reject(parseError);
+        }
+      });
+    });
   }
 
   /**
@@ -376,5 +587,23 @@ export class APIService {
   public setUserId(userId: string): void {
     this.userId = userId;
     hilog.info(DOMAIN, TAG, `User ID updated: ${userId}`);
+  }
+
+  /**
+   * Get API log file path
+   */
+  public getAPILogFilePath(): string | null {
+    return this.apiLogger?.getLogFilePath() || null;
+  }
+
+  /**
+   * Get API log statistics
+   */
+  public getAPILogStats(): APILogStats {
+    if (!this.apiLogger) {
+      const emptyStats: APILogStats = { total: 0, successful: 0, failed: 0 };
+      return emptyStats;
+    }
+    return this.apiLogger.getStats();
   }
 }

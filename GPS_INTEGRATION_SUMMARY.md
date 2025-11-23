@@ -139,13 +139,19 @@ Added GPS functionality:
 
 ### GPS is ONLY for Freezes
 - GPS coordinates are retrieved **only** when a freeze is predicted
-- Tremor events do NOT include GPS coordinates
+- Tremor/activity data does NOT include GPS coordinates
 - This minimizes battery drain and preserves user privacy
 
+### Data Reporting Architecture
+- **Freeze incidents**: Sent immediately with GPS coordinates to incident report endpoint
+- **Heart rate + tremor data**: Sent every 5 minutes to heart rate endpoint
+- Tremor data includes: status (sedentary/active/unknown/not_worn), magnitude, frequency, timestamp
+- Tremor events are NOT separate incident reports
+
 ### Event-Driven Upload
-- Reports are no longer uploaded on a fixed schedule (every 5 minutes)
-- Reports are uploaded **when freeze incidents occur**
-- This ensures timely emergency response with location data
+- Freeze incident reports are uploaded **when freeze incidents occur**
+- Heart rate reports (including tremor data) are uploaded every 5 minutes
+- This ensures timely emergency response with location data for freezes
 
 ### Graceful Degradation
 - If GPS is unavailable or disabled, the freeze is still recorded

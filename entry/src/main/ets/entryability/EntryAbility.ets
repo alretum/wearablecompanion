@@ -1,4 +1,4 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, ConfigurationConstant, UIAbility, Want, common } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { MonitoringService } from '../services/MonitoringService';
@@ -8,8 +8,10 @@ const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
   private monitoringService: MonitoringService | null = null;
+  private static currentInstance: EntryAbility | null = null;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    EntryAbility.currentInstance = this;
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     
@@ -27,14 +29,10 @@ export default class EntryAbility extends UIAbility {
 
   onDestroy(): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
-    
-    // Cleanup MonitoringService
-    if (this.monitoringService !== null) {
-      this.monitoringService.destroy();
-      this.monitoringService = null;
-      hilog.info(DOMAIN, 'testTag', 'MonitoringService destroyed');
-    }
+    // Monitoring continues via continuous task
   }
+
+  // Background service functionality removed - using continuous tasks instead
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
     // Main window is created, set main page for this ability
@@ -50,20 +48,23 @@ export default class EntryAbility extends UIAbility {
   }
 
   onWindowStageDestroy(): void {
-    // Main window is destroyed, release UI related resources
-    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy');
+    // Main window is destroyed, but keep monitoring in background
+    hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onWindowStageDestroy - keeping monitoring active');
   }
 
   onForeground(): void {
     // Ability has brought to foreground
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onForeground');
     
-    // Resume monitoring if it was active
-    if (this.monitoringService !== null) {
+    // Ensure monitoring is active
+    if (this.monitoringService !== null && AppConfig.AUTO_START_MONITORING) {
       const state = this.monitoringService.getState();
-      if (state.monitoringStartTime > 0 && !this.monitoringService.getState().status.includes('monitoring')) {
-        // Monitoring was active but paused, resume it
-        hilog.info(DOMAIN, 'testTag', 'Resuming monitoring on foreground');
+      if (state.monitoringStartTime === 0) {
+        // Monitoring not started, start it now
+        this.monitoringService.startMonitoring();
+        hilog.info(DOMAIN, 'testTag', 'Started monitoring on foreground');
+      } else {
+        hilog.info(DOMAIN, 'testTag', 'Monitoring already active');
       }
     }
   }

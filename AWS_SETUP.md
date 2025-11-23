@@ -21,7 +21,7 @@ Watch (HarmonyOS)
 ### 1. Report Data (When Freeze Incidents Occur)
 
 **Endpoint**: `/upload-report`  
-**File**: Complete `report.json` with **processed data only** (no raw sensor data)
+**File**: Complete `report.json` with freeze incidents only (no tremor data)
 **GPS**: Freeze predictions include GPS coordinates for location tracking
 
 ```json
@@ -31,15 +31,7 @@ Watch (HarmonyOS)
   "deviceId": "DEVICE_XYZ",
   "sessionStart": 1234567890000,
   "sessionEnd": 1234567890000,
-  "totalTremors": 5,
   "totalFreezes": 2,
-  "tremors": [
-    {
-      "severity": 6.5,
-      "duration": 2000,
-      "timestamp": 1234567890000
-    }
-  ],
   "freezePredictions": [
     {
       "probability": 0.85,
@@ -63,12 +55,12 @@ Watch (HarmonyOS)
 }
 ```
 
-**Note**: Raw accelerometer and gyroscope data are NOT included - only processed metrics like severity, duration, and confidence scores.
+**Note**: Raw accelerometer and gyroscope data are NOT included. Tremor/activity data is sent via the heart rate endpoint.
 
 ### 2. Heart Rate Data (Every 5 minutes)
 
 **Endpoint**: `/upload-heartrate`  
-**Content**: 5 entries, one per minute with aggregated statistics
+**Content**: 5 entries, one per minute with aggregated statistics + tremor/activity data
 
 ```json
 {
@@ -81,39 +73,56 @@ Watch (HarmonyOS)
       "avgBpm": 72.5,
       "minBpm": 68,
       "maxBpm": 78,
-      "sampleCount": 60
+      "tremorData": {
+        "status": "active",
+        "magnitude": 1.2,
+        "frequency": 5.3,
+        "timestamp": 1234567220000
+      }
     },
     {
       "timestamp": 1234567260000,
       "avgBpm": 74.2,
       "minBpm": 70,
       "maxBpm": 80,
-      "sampleCount": 60
+      "tremorData": {
+        "status": "sedentary",
+        "magnitude": 0.3,
+        "frequency": 0,
+        "timestamp": 1234567280000
+      }
     },
     {
       "timestamp": 1234567320000,
       "avgBpm": 73.8,
       "minBpm": 69,
       "maxBpm": 79,
-      "sampleCount": 60
+      "tremorData": null
     },
     {
       "timestamp": 1234567380000,
       "avgBpm": 75.1,
       "minBpm": 71,
       "maxBpm": 82,
-      "sampleCount": 60
+      "tremorData": {
+        "status": "active",
+        "magnitude": 1.8,
+        "frequency": 4.7,
+        "timestamp": 1234567400000
+      }
     },
     {
       "timestamp": 1234567440000,
       "avgBpm": 73.3,
       "minBpm": 68,
       "maxBpm": 77,
-      "sampleCount": 60
+      "tremorData": null
     }
   ]
 }
 ```
+
+**Note**: Each minute may include optional tremor/activity data with status (sedentary/active/unknown/not_worn), motion magnitude (m/s²), and dominant frequency (Hz).
 
 ## Setup Steps
 
@@ -594,7 +603,7 @@ static readonly FREEZE_ALERT_ENDPOINT = '';
 
 **Heart Rate**:
 - Sensor reads heart rate every second
-- Every minute, aggregates readings into: avgBpm, minBpm, maxBpm, sampleCount
+- Every minute, aggregates readings into: avgBpm, minBpm, maxBpm
 - Keeps last 5 minutes of aggregates
 - Every 5 minutes, uploads all 5 aggregates to AWS
 
@@ -701,7 +710,7 @@ Use AWS Console → Lambda → Test
 
 ```json
 {
-  "body": "{\"userId\":\"USER_TEST\",\"deviceId\":\"DEVICE_TEST\",\"reportTimestamp\":1732233900000,\"minutes\":[{\"timestamp\":1732233600000,\"avgBpm\":72.5,\"minBpm\":68,\"maxBpm\":78,\"sampleCount\":60},{\"timestamp\":1732233660000,\"avgBpm\":74.2,\"minBpm\":70,\"maxBpm\":80,\"sampleCount\":60},{\"timestamp\":1732233720000,\"avgBpm\":73.8,\"minBpm\":69,\"maxBpm\":79,\"sampleCount\":60},{\"timestamp\":1732233780000,\"avgBpm\":75.1,\"minBpm\":71,\"maxBpm\":82,\"sampleCount\":60},{\"timestamp\":1732233840000,\"avgBpm\":73.3,\"minBpm\":68,\"maxBpm\":77,\"sampleCount\":60}]}"
+  "body": "{\"userId\":\"USER_TEST\",\"deviceId\":\"DEVICE_TEST\",\"reportTimestamp\":1732233900000,\"minutes\":[{\"timestamp\":1732233600000,\"avgBpm\":72.5,\"minBpm\":68,\"maxBpm\":78},{\"timestamp\":1732233660000,\"avgBpm\":74.2,\"minBpm\":70,\"maxBpm\":80},{\"timestamp\":1732233720000,\"avgBpm\":73.8,\"minBpm\":69,\"maxBpm\":79},{\"timestamp\":1732233780000,\"avgBpm\":75.1,\"minBpm\":71,\"maxBpm\":82},{\"timestamp\":1732233840000,\"avgBpm\":73.3,\"minBpm\":68,\"maxBpm\":77}]}"
 }
 ```
 

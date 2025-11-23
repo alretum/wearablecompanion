@@ -14,6 +14,8 @@ import { TremorDetector } from '../algorithms/TremorDetector';
 import { APIService, ConnectivityResults } from '../connectivity/APIService';
 import { ReportLogger } from './ReportLogger';
 import { HeartRateLogger } from './HeartRateLogger';
+import { DataCollectionLogger } from './DataCollectionLogger';
+import { APILogStats } from './APILogger';
 import { 
   AppState, 
   MonitoringStatus, 
@@ -30,6 +32,7 @@ import { vibrator } from '@kit.SensorServiceKit';
 import { common, abilityAccessCtrl, Permissions } from '@kit.AbilityKit';
 import { geoLocationManager } from '@kit.LocationKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { backgroundTaskManager } from '@kit.BackgroundTasksKit';
 import { CoordinateType, toDMS } from '../common/CoordinatesConverter';
 
 const DOMAIN = 0x0005;
@@ -49,6 +52,7 @@ export class MonitoringService {
   private apiService: APIService;
   private reportLogger: ReportLogger | null = null;
   private heartRateLogger: HeartRateLogger | null = null;
+  private dataCollectionLogger: DataCollectionLogger | null = null;
   private context: common.UIAbilityContext | null = null;
   private atManager: abilityAccessCtrl.AtManager | null = null;
   
@@ -58,6 +62,7 @@ export class MonitoringService {
   private syncTimer: number = -1;
   private heartRateAggregationTimer: number = -1;
   private allPredictions: FreezePrediction[] = [];
+  private continuousTaskId: number = -1;
 
   private constructor() {
     this.sensorManager = new SensorManager();
@@ -88,19 +93,31 @@ export class MonitoringService {
     const deviceId = 'DEVICE_' + Date.now();
     this.reportLogger = new ReportLogger(context, userId, deviceId);
     this.heartRateLogger = new HeartRateLogger(userId, deviceId);
+    
+    // Initialize API logger
+    this.apiService.initializeLogger(context, userId, deviceId);
+    
+    // Initialize data collection logger if enabled
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      this.dataCollectionLogger = new DataCollectionLogger(context, userId, deviceId);
+      hilog.info(DOMAIN, TAG, 'Data collection mode ENABLED');
+    }
+    
     this.atManager = abilityAccessCtrl.createAtManager();
     
-    // Request GPS permissions
-    this.requestGPSPermissions();
+    // Request all necessary permissions
+    this.requestAllPermissions();
     
-    hilog.info(DOMAIN, TAG, 'MonitoringService initialized with ReportLogger, HeartRateLogger, and GPS');
+    hilog.info(DOMAIN, TAG, 'MonitoringService initialized with ReportLogger, HeartRateLogger, DataCollectionLogger, and GPS');
   }
 
   /**
-   * Request GPS location permissions from the user
+   * Request all necessary runtime permissions from the user
+   * Returns true if all permissions granted, false otherwise
    */
-  private async requestGPSPermissions(): Promise<void> {
+  private async requestAllPermissions(): Promise<boolean> {
     const perms: Permissions[] = [
+      'ohos.permission.READ_HEALTH_DATA',  // Required for heart rate sensor
       'ohos.permission.LOCATION', 
       'ohos.permission.APPROXIMATELY_LOCATION'
     ];
@@ -108,11 +125,33 @@ export class MonitoringService {
     try {
       if (this.atManager && this.context) {
         const result = await this.atManager.requestPermissionsFromUser(this.context, perms);
-        hilog.info(DOMAIN, TAG, 'GPS permission request result: ' + JSON.stringify(result));
+        hilog.info(DOMAIN, TAG, 'Permission request result: ' + JSON.stringify(result));
+        
+        // Check if all permissions were granted
+        let allGranted = true;
+        result.authResults.forEach((authResult, index) => {
+          const permName = perms[index];
+          if (authResult === 0) {
+            hilog.info(DOMAIN, TAG, `Permission granted: ${permName}`);
+          } else {
+            hilog.warn(DOMAIN, TAG, `Permission denied: ${permName}`);
+            allGranted = false;
+          }
+        });
+        return allGranted;
       }
     } catch (err) {
-      hilog.error(DOMAIN, TAG, 'Request GPS permission failed: ' + JSON.stringify(err));
+      hilog.error(DOMAIN, TAG, 'Request permissions failed: ' + JSON.stringify(err));
     }
+    return false;
+  }
+
+  /**
+   * Record medication intake
+   */
+  public async recordMedicationIntake(): Promise<boolean> {
+    hilog.info(DOMAIN, TAG, 'User recorded medication intake');
+    return await this.apiService.recordMedicationIntake();
   }
 
   /**
@@ -157,14 +196,26 @@ export class MonitoringService {
 
   /**
    * Start monitoring for Parkinson's symptoms
+   * Ensures all permissions are granted before starting sensors
    */
-  public startMonitoring(): void {
+  public async startMonitoring(): Promise<void> {
     if (this.appState.status === MonitoringStatus.MONITORING) {
       hilog.warn(DOMAIN, TAG, 'Already monitoring');
       return;
     }
 
     hilog.info(DOMAIN, TAG, 'Starting monitoring...');
+    
+    // Verify all permissions are granted
+    const permissionsGranted = await this.requestAllPermissions();
+    if (!permissionsGranted) {
+      const errorMsg = 'Cannot start monitoring: Not all permissions granted';
+      hilog.error(DOMAIN, TAG, errorMsg);
+      this.appState.status = MonitoringStatus.ERROR;
+      this.appState.errorMessage = errorMsg;
+      this.notifyStateChange();
+      return;
+    }
     
     this.appState.status = MonitoringStatus.MONITORING;
     this.appState.monitoringStartTime = Date.now();
@@ -180,6 +231,9 @@ export class MonitoringService {
       (error) => this.handleSensorError(error)
     );
 
+    // Start continuous background task
+    await this.startContinuousTask();
+    
     // Start periodic data sync
     this.startDataSync();
     this.startHeartRateAggregation();
@@ -203,6 +257,9 @@ export class MonitoringService {
     this.stopDataSync();
     this.stopHeartRateAggregation();
     
+    // Stop continuous background task
+    this.stopContinuousTask();
+    
     // Final sync before stopping
     this.syncDataToServer();
     this.syncHeartRateToServer();
@@ -219,6 +276,14 @@ export class MonitoringService {
   private handleAccelerometerData(accel: AccelerometerData): void {
     this.appState.currentAccel = accel;
     
+    // Log to data collection if enabled and update lastSaved when persisted
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      const wasSaved = this.dataCollectionLogger?.logAccelerometer(accel);
+      if (wasSaved) {
+        this.appState.lastSavedAccel = accel;
+      }
+    }
+    
     // Process with current gyroscope data if available
     if (this.appState.currentGyro !== null) {
       this.processMotionData(accel, this.appState.currentGyro);
@@ -230,6 +295,14 @@ export class MonitoringService {
    */
   private handleGyroscopeData(gyro: GyroscopeData): void {
     this.appState.currentGyro = gyro;
+    
+    // Log to data collection if enabled and update lastSaved when persisted
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      const wasSaved = this.dataCollectionLogger?.logGyroscope(gyro);
+      if (wasSaved) {
+        this.appState.lastSavedGyro = gyro;
+      }
+    }
     
     // Process with current accelerometer data if available
     if (this.appState.currentAccel !== null) {
@@ -246,6 +319,12 @@ export class MonitoringService {
     // Add to heart rate logger
     this.heartRateLogger?.addReading(heartRate);
     
+    // Log to data collection if enabled (heart rate saves immediately)
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      this.dataCollectionLogger?.logHeartRate(heartRate);
+      this.appState.lastSavedHeartRate = heartRate; // Always saved immediately
+    }
+    
     this.notifyStateChange();
   }
 
@@ -257,51 +336,50 @@ export class MonitoringService {
       return; // Wait for heart rate data
     }
 
-    // Detect tremors
-    const tremor = this.tremorDetector.detectTremor(accel, gyro);
-    if (tremor !== null) {
-      this.handleTremorDetected(tremor);
+    // Detect tremors (only if enabled)
+    if (AppConfig.ENABLE_TREMOR_DETECTION) {
+      const tremor = this.tremorDetector.detectTremor(accel, gyro);
+      if (tremor !== null) {
+        this.handleTremorDetected(tremor);
+      }
     }
 
-    // Predict freezes
-    const prediction = this.predictionAlgorithm.predictFreeze(
-      accel, 
-      gyro, 
-      this.appState.currentHeartRate
-    );
-    
-    if (prediction !== null) {
-      this.handleFreezePrediction(prediction);
+    // Predict freezes (only if enabled)
+    if (AppConfig.ENABLE_FREEZE_DETECTION) {
+      const prediction = this.predictionAlgorithm.predictFreeze(
+        accel, 
+        gyro, 
+        this.appState.currentHeartRate
+      );
+      
+      if (prediction !== null) {
+        this.handleFreezePrediction(prediction);
+      }
     }
 
     this.notifyStateChange();
   }
 
   /**
-   * Handle detected tremor
+   * Handle detected tremor/activity data
+   * Tremor data is included in the 5-minute heart rate report
    */
   private handleTremorDetected(tremor: TremorEvent): void {
-    hilog.info(DOMAIN, TAG, `Tremor detected: severity=${tremor.severity.toFixed(2)}`);
+    hilog.info(DOMAIN, TAG, `Activity detected: status=${tremor.status}, magnitude=${tremor.magnitude.toFixed(2)}, frequency=${tremor.frequency.toFixed(2)}Hz`);
     
     this.appState.latestTremor = tremor;
     this.appState.totalTremorsDetected++;
 
-    // Log to report.json file
-    this.reportLogger?.logTremor(tremor);
+    // Add tremor data to heart rate logger (will be included in 5-minute report)
+    this.heartRateLogger?.addTremorData(tremor);
     
-    // Send tremor report in batches
-    const tremorCount = this.tremorDetector.getTremorCount();
-    if (tremorCount >= AppConfig.TREMOR_LOG_BATCH_SIZE) {
-      const tremors = this.tremorDetector.getDetectedTremors();
-      this.apiService.sendTremorReport(tremors).then((success) => {
-        if (success && AppConfig.CLEAR_DATA_AFTER_SYNC) {
-          this.tremorDetector.clearDetectedTremors();
-          hilog.info(DOMAIN, TAG, 'Tremor batch sent and cleared');
-        } else if (success) {
-          hilog.info(DOMAIN, TAG, 'Tremor batch sent (data retained)');
-        }
-      });
+    // Log to data collection if enabled
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      this.dataCollectionLogger?.logTremor(tremor);
     }
+    
+    // NOTE: Tremor data is NOT sent to incident reports
+    // It's included in the periodic heart rate report every 5 minutes
     
     this.notifyStateChange();
   }
@@ -331,6 +409,14 @@ export class MonitoringService {
 
     // Log to report.json file (with GPS coordinates if available)
     this.reportLogger?.logFreezePrediction(prediction);
+    
+    // Log to data collection if enabled
+    if (AppConfig.ENABLE_DATA_COLLECTION) {
+      this.dataCollectionLogger?.logFreezePrediction(prediction);
+      if (gpsCoordinates !== null) {
+        this.dataCollectionLogger?.logGPS(gpsCoordinates);
+      }
+    }
     
     // Send alert to server immediately
     this.apiService.sendFreezeAlert(prediction).then((success) => {
@@ -441,6 +527,45 @@ export class MonitoringService {
   }
 
   /**
+   * Start continuous background task to keep app running in background
+   */
+  private async startContinuousTask(): Promise<void> {
+    if (!this.context) {
+      hilog.error(DOMAIN, TAG, 'Cannot start continuous task: context is null');
+      return;
+    }
+
+    try {
+      await backgroundTaskManager.startBackgroundRunning(
+        this.context,
+        backgroundTaskManager.BackgroundMode.DATA_TRANSFER,
+        {
+          wantAgent: undefined // Optional: can add notification to show background activity
+        }
+      );
+      hilog.info(DOMAIN, TAG, 'Continuous background task started - app will run in background');
+    } catch (error) {
+      hilog.error(DOMAIN, TAG, `Failed to start continuous background task: ${JSON.stringify(error)}`);
+    }
+  }
+
+  /**
+   * Stop continuous background task
+   */
+  private stopContinuousTask(): void {
+    if (!this.context) {
+      return;
+    }
+
+    try {
+      backgroundTaskManager.stopBackgroundRunning(this.context);
+      hilog.info(DOMAIN, TAG, 'Continuous background task stopped');
+    } catch (error) {
+      hilog.error(DOMAIN, TAG, `Failed to stop continuous background task: ${JSON.stringify(error)}`);
+    }
+  }
+
+  /**
    * Start periodic data sync
    */
   private startDataSync(): void {
@@ -466,6 +591,8 @@ export class MonitoringService {
 
   /**
    * Sync data to server
+   * Only freeze incidents are sent via this method
+   * Tremor data is sent as part of heart rate reports
    */
   private syncDataToServer(): void {
     if (!this.reportLogger) {
@@ -529,10 +656,52 @@ export class MonitoringService {
   }
 
   /**
+   * Get the data collection logger instance
+   */
+  public getDataCollectionLogger(): DataCollectionLogger | null {
+    return this.dataCollectionLogger;
+  }
+
+  /**
+   * Get data collection statistics
+   */
+  public getDataCollectionStats(): string {
+    if (!AppConfig.ENABLE_DATA_COLLECTION || !this.dataCollectionLogger) {
+      return 'Data collection is disabled';
+    }
+    return this.dataCollectionLogger.getStats();
+  }
+
+  /**
+   * Export data collection to backup file
+   */
+  public exportDataCollection(): string {
+    if (!AppConfig.ENABLE_DATA_COLLECTION || !this.dataCollectionLogger) {
+      return '';
+    }
+    return this.dataCollectionLogger.exportToBackup();
+  }
+
+  /**
+   * Get API log file path for access
+   */
+  public getAPILogFilePath(): string | null {
+    return this.apiService.getAPILogFilePath();
+  }
+
+  /**
+   * Get API log statistics
+   */
+  public getAPILogStats(): APILogStats {
+    return this.apiService.getAPILogStats();
+  }
+
+  /**
    * Cleanup resources
    */
   public destroy(): void {
     this.stopMonitoring();
+    this.stopContinuousTask();
     this.predictionAlgorithm.reset();
     this.tremorDetector.reset();
     hilog.info(DOMAIN, TAG, 'MonitoringService destroyed');

@@ -91,7 +91,7 @@ The Index page now displays real-time FoG status:
 ## Audio Implementation
 
 ### Critical Workaround
-AVPlayer cannot directly access `resources/base/media/` files. The system implements this workaround:
+AVPlayer cannot directly access `resources/rawfile/` files. The system implements this workaround:
 
 ```typescript
 // 1. Load resource content
@@ -255,6 +255,7 @@ entry/src/main/
 └── resources/
     └── base/
         └── media/
+        rawfile/
             └── ras_metronome.mp3      # Audio intervention file
 ```
 
@@ -262,7 +263,7 @@ entry/src/main/
 
 ### Issue: Audio doesn't play
 **Check**:
-1. File exists: `entry/src/main/resources/base/media/ras_metronome.mp3`
+1. File exists: `entry/src/main/resources/rawfile/ras_metronome.mp3`
 2. Cache directory writable: `context.cacheDir`
 3. AVPlayer state: Check logs for "AVPlayer state: prepared"
 4. Permissions: Audio playback permissions granted

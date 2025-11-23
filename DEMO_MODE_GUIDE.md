@@ -145,7 +145,7 @@ The demo sends the following JSON to your backend:
 
 ### File Location
 ```
-entry/src/main/resources/base/media/ras_metronome.mp3
+entry/src/main/resources/rawfile/ras_metronome.mp3
 ```
 
 ### Cache Workaround

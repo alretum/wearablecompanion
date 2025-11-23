@@ -1,10 +1,10 @@
 /**
  * AudioPlayer - Manages metronome audio playback for demo mode
  * 
- * CRITICAL: HarmonyOS AVPlayer cannot load resources directly from base/media.
+ * CRITICAL: HarmonyOS AVPlayer cannot load resources directly from rawfile.
  * 
  * Workaround:
- * 1. Copy ras_metronome.mp3 from Resource Manager to cacheDir on init
+ * 1. Copy ras_metronome.mp3 from resources/rawfile to cacheDir on init
  * 2. Load AVPlayer from file://cacheDir/ras_metronome.mp3
  * 3. Set loop mode for continuous playback
  */
@@ -64,8 +64,8 @@ export class AudioPlayer {
   }
 
   /**
-   * Copy metronome audio file from resources to cache directory
-   * This is required because AVPlayer cannot load from base/media directly
+   * Copy metronome audio file from resources/rawfile to cache directory
+   * This is required because AVPlayer cannot load from rawfile directly
    */
   private async copyResourceToCache(): Promise<void> {
     if (!this.context) {

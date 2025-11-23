@@ -21,7 +21,7 @@ All components have been successfully implemented. Use this checklist to verify 
 ### Watch App Configuration
 - [ ] Open `entry/src/main/ets/config/AppConfig.ets`
 - [ ] Update `DEMO_CALL_ENDPOINT` with ngrok URL
-- [ ] Verify `ras_metronome.mp3` exists in `resources/base/media/`
+- [ ] Verify `ras_metronome.mp3` exists in `entry/src/main/resources/rawfile/`
 - [ ] Build the app in DevEco Studio
 - [ ] Deploy to HarmonyOS watch
 - [ ] Grant all permissions (sensors, location, audio)

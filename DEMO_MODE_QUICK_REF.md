@@ -83,7 +83,7 @@ app.post('/trigger-call', async (req, res) => {
 
 ### Audio Playback
 - **File**: `services/AudioPlayer.ets`
-- **Resource**: `resources/base/media/ras_metronome.mp3`
+- **Resource**: `entry/src/main/resources/rawfile/ras_metronome.mp3`
 - **Workaround**: Copies to cache, loads via file:// URI
 
 ### UI Integration
@@ -166,7 +166,7 @@ Content-Type: application/json
 - [ ] Watch connected to network (WiFi/cellular)
 - [ ] Monitoring started in app
 - [ ] Shake gesture practiced (needs to be vigorous)
-- [ ] Audio file `ras_metronome.mp3` exists
+- [ ] Audio file `ras_metronome.mp3` exists in `entry/src/main/resources/rawfile/`
 - [ ] Vibration permission granted
 - [ ] Test with httpbin.org first (mock endpoint)
 - [ ] Verify backend receives request
@@ -180,7 +180,7 @@ Content-Type: application/json
 | Problem | Solution |
 |---------|----------|
 | Demo won't trigger | Shake harder, ensure monitoring active |
-| No audio | Check `ras_metronome.mp3` in resources |
+| No audio | Check `ras_metronome.mp3` in `resources/rawfile/` |
 | No vibration | Check permissions, watch not in silent mode |
 | Call fails | Verify endpoint URL, test with curl |
 | Backend error | Check logs, verify Twilio credentials |

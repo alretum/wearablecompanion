@@ -93,7 +93,7 @@ export class GuardianService {
   /**
    * CRITICAL: Audio Initialization Workaround
    * 
-   * AVPlayer cannot access resources/base/media directly.
+   * AVPlayer cannot access resources/rawfile directly.
    * This function copies the audio file to the app's cache directory.
    */
   private async initAudio(): Promise<void> {
@@ -104,11 +104,11 @@ export class GuardianService {
     try {
       hilog.info(DOMAIN, TAG, 'Initializing audio asset...');
 
-      // Step 1: Get resource content
+      // Step 1: Get resource content from rawfile
       const resourceManager = this.context.resourceManager;
-      const mediaContent = await resourceManager.getMediaContent($r('app.media.ras_metronome').id);
+      const fileData: Uint8Array = await resourceManager.getRawFileContent('ras_metronome.mp3');
       
-      hilog.info(DOMAIN, TAG, `Resource loaded: ${mediaContent.byteLength} bytes`);
+      hilog.info(DOMAIN, TAG, `Resource loaded: ${fileData.byteLength} bytes`);
 
       // Step 2: Define target path in cache
       this.audioPath = `${this.context.cacheDir}/ras_metronome.mp3`;
@@ -116,7 +116,7 @@ export class GuardianService {
 
       // Step 3: Write file to cache
       const file = fs.openSync(this.audioPath, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE);
-      fs.writeSync(file.fd, mediaContent.buffer);
+      fs.writeSync(file.fd, fileData.buffer);
       fs.closeSync(file);
       
       hilog.info(DOMAIN, TAG, 'Audio file written to cache');

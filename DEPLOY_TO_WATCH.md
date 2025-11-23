@@ -86,7 +86,7 @@ When the app launches for the first time:
 **Issue**: Metronome doesn't play
 
 **Solutions**:
-- Check `ras_metronome.mp3` exists in `entry/src/main/resources/base/media/`
+- Check `ras_metronome.mp3` exists in `entry/src/main/resources/rawfile/`
 - Verify audio permission granted
 - Check watch volume isn't muted
 - Look at logs for AudioPlayer errors
@@ -256,7 +256,7 @@ config/AppConfig.ets            - Configure AWS endpoint
 
 **Audio Resource**:
 ```
-resources/base/media/ras_metronome.mp3
+resources/rawfile/ras_metronome.mp3
 ```
 
 ---

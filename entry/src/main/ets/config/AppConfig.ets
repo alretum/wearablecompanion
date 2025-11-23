@@ -9,6 +9,7 @@ export class AppConfig {
   static readonly FREEZE_ALERT_ENDPOINT = ''; // Not used anymore
   static readonly SYNC_DATA_ENDPOINT = 'https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod/upload-report';
   static readonly HEART_RATE_ENDPOINT = 'https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate';
+  static readonly MEDICATION_INTAKE_ENDPOINT = 'https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/medication-intake';
   
   // Sensor sampling rates (Hz)
   static readonly ACCELEROMETER_RATE = 50; // 10 Hz - reduced for accuracy and stability

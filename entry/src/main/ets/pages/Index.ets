@@ -55,6 +55,9 @@ struct Index {
         .borderRadius({ bottomLeft: 24, bottomRight: 24 })
 
         Column() {
+          // Medication Button
+          this.MedicationButton()
+
           // Status Display
           this.StatusCard()
 
@@ -83,6 +86,23 @@ struct Index {
     .height('100%')
     .backgroundColor('#F0F8F4')
     .scrollBar(BarState.Off)
+  }
+
+  @Builder
+  MedicationButton() {
+    Button('💊 Medication Taken')
+      .width('100%')
+      .height(48)
+      .fontSize(16)
+      .fontWeight(FontWeight.Bold)
+      .fontColor(Color.White)
+      .backgroundColor('#2196F3')
+      .borderRadius(12)
+      .margin({ top: 12, bottom: 12 })
+      .onClick(async () => {
+        const success = await this.recordMedication();
+        console.log(success ? '✓ Medication recorded' : '✗ Failed to record medication');
+      })
   }
 
   @Builder
@@ -541,6 +561,10 @@ struct Index {
   }
 
   // Helper methods
+  private async recordMedication(): Promise<boolean> {
+    return await this.monitoringService.recordMedicationIntake();
+  }
+
   private getStatusText(): string {
     switch (this.appState.status) {
       case MonitoringStatus.STOPPED:

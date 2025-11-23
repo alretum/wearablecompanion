@@ -96,6 +96,12 @@ export interface HeartRateUploadPayload {
   minuteData: HeartRateMinuteData[];
 }
 
+export interface MedicationIntakePayload {
+  userId: string;
+  deviceId: string;
+  medicationTime: string;
+}
+
 export class APIService {
   private deviceId: string;
   private userId: string; // TODO: Implement user authentication
@@ -308,6 +314,58 @@ export class APIService {
       );
 
       hilog.error(DOMAIN, TAG, `Failed to upload heart rate report: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Record medication intake event
+   * Endpoint: POST /medication-intake
+   * 
+   * Sends a timestamp when the user takes their medication
+   */
+  public async recordMedicationIntake(): Promise<boolean> {
+    const payload: MedicationIntakePayload = {
+      userId: this.userId,
+      deviceId: this.deviceId,
+      medicationTime: new Date().toISOString()
+    };
+
+    try {
+      hilog.info(DOMAIN, TAG, 'Recording medication intake');
+      
+      const response = await this.sendHeartRateRequest(
+        AppConfig.MEDICATION_INTAKE_ENDPOINT,
+        http.RequestMethod.POST,
+        payload
+      );
+
+      // Log successful API call
+      this.apiLogger?.logAPICall(
+        AppConfig.MEDICATION_INTAKE_ENDPOINT,
+        'POST',
+        payload,
+        true,
+        200,
+        JSON.stringify(response)
+      );
+
+      hilog.info(DOMAIN, TAG, `Medication intake recorded successfully: ${JSON.stringify(response)}`);
+      return true;
+
+    } catch (error) {
+      // Log failed API call
+      this.apiLogger?.logAPICall(
+        AppConfig.MEDICATION_INTAKE_ENDPOINT,
+        'POST',
+        payload,
+        false,
+        undefined,
+        undefined,
+        String(error)
+      );
+
+      hilog.error(DOMAIN, TAG, `Failed to record medication intake: ${error}`);
       return false;
     }
   }

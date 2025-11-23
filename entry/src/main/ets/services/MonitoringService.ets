@@ -147,6 +147,14 @@ export class MonitoringService {
   }
 
   /**
+   * Record medication intake
+   */
+  public async recordMedicationIntake(): Promise<boolean> {
+    hilog.info(DOMAIN, TAG, 'User recorded medication intake');
+    return await this.apiService.recordMedicationIntake();
+  }
+
+  /**
    * Get current GPS coordinates
    * Returns GPS coordinates or null if location cannot be retrieved
    */

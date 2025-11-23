@@ -63,7 +63,7 @@ export class MotionAnalyzer {
     
     // Step C: Metric Extraction (for both active and sedentary states)
     const mad = this.calculateMAD(signal);
-    const frequency = this.calculateZCR(signal, xData.length);
+    const frequency = this.calculateZCR(signal);
 
     // Step D: Scoring & Classification
     // Always calculate magnitude (motion intensity) regardless of activity status
@@ -166,8 +166,11 @@ export class MotionAnalyzer {
    * 
    * Counts transitions across noise floor to estimate frequency.
    * Uses hysteresis to ignore micro-fluctuations.
+   * 
+   * Note: Uses actual signal length and 50 Hz sampling rate.
+   * For a 10-second burst at 50 Hz, we expect ~500 samples.
    */
-  private calculateZCR(signal: number[], sampleCount: number): number {
+  private calculateZCR(signal: number[]): number {
     if (signal.length < 2) return 0;
 
     let crossings = 0;
@@ -201,10 +204,13 @@ export class MotionAnalyzer {
     }
 
     // Convert to frequency (Hz)
-    // Assuming 50 Hz sampling rate
+    // Use actual signal length and configured 50 Hz sampling rate
     const samplingRate = 50;
-    const durationSeconds = sampleCount / samplingRate;
+    const durationSeconds = signal.length / samplingRate;
     const frequency = (crossings / 2) / durationSeconds; // Divide by 2 for full cycles
+
+    hilog.debug(DOMAIN, TAG, 
+      `ZCR: ${crossings} crossings in ${signal.length} samples (${durationSeconds.toFixed(1)}s) = ${frequency.toFixed(1)} Hz`);
 
     return frequency;
   }

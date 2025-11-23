@@ -17,10 +17,15 @@ export class AppConfig {
   
   // Emergency contact configuration - CHANGE THESE BEFORE BUILD
   static readonly EMERGENCY_PHONE_NUMBER = '+4915165140425'; // Guardian's phone number
-  static readonly EMERGENCY_LOCATION = {
+  static readonly EMERGENCY_LOCATION: EmergencyLocation = {
     lat: 48.1351,  // Munich, Germany (TUM area)
     lng: 11.5820
   };
+}
+
+export interface EmergencyLocation {
+  lat: number;
+  lng: number;
   
   // Sensor sampling rates (Hz)
   static readonly ACCELEROMETER_RATE = 50; // 10 Hz - reduced for accuracy and stability

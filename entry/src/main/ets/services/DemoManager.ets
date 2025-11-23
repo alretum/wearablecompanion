@@ -23,17 +23,19 @@ const TAG = 'DemoManager';
 // DEMO CONFIGURATION
 const DEMO_DELAY_MS = 15000; // 15 seconds until phone call trigger
 
-// Request payload interface for Supabase call-me endpoint
+// Request payload interfaces for Supabase call-me endpoint
+interface LocationData {
+  lat: number;
+  lng: number;
+}
+
 interface CallTriggerPayload {
   phone: string;
   incident_id: string;
   user_id: string;
   severity: number;
   confidence: number;
-  location: {
-    lat: number;
-    lng: number;
-  };
+  location: LocationData;
 }
 
 export enum DemoState {

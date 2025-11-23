@@ -10,11 +10,10 @@
  */
 
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { http } from '@kit.NetworkKit';
 import { vibrator } from '@kit.SensorServiceKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { AudioPlayer } from './AudioPlayer';
-import { AppConfig } from '../config/AppConfig';
+import { APIService } from '../connectivity/APIService';
 import { common } from '@kit.AbilityKit';
 
 const DOMAIN = 0x0010;
@@ -22,21 +21,6 @@ const TAG = 'DemoManager';
 
 // DEMO CONFIGURATION
 const DEMO_DELAY_MS = 15000; // 15 seconds until phone call trigger
-
-// Request payload interfaces for Supabase call-me endpoint
-interface LocationData {
-  lat: number;
-  lng: number;
-}
-
-interface CallTriggerPayload {
-  phone: string;
-  incident_id: string;
-  user_id: string;
-  severity: number;
-  confidence: number;
-  location: LocationData;
-}
 
 export enum DemoState {
   INACTIVE = 'INACTIVE',
@@ -61,12 +45,14 @@ export class DemoManager {
   
   // Services
   private audioPlayer: AudioPlayer | null = null;
+  private apiService: APIService;
   private context: common.UIAbilityContext | null = null;
   
   // State callbacks for UI updates
   private stateCallbacks: ((state: DemoState) => void)[] = [];
   
   private constructor() {
+    this.apiService = new APIService();
     hilog.info(DOMAIN, TAG, '🛡️ Guardian Angel Demo Manager initialized');
   }
   
@@ -87,6 +73,12 @@ export class DemoManager {
     this.context = context;
     this.audioPlayer = new AudioPlayer();
     await this.audioPlayer.initialize(context);
+    
+    // Initialize API logger
+    const userId = 'USER_' + Date.now();
+    const deviceId = 'DEVICE_' + Date.now();
+    this.apiService.initializeLogger(context, userId, deviceId);
+    
     hilog.info(DOMAIN, TAG, '✅ DemoManager initialized with context');
   }
   
@@ -220,59 +212,26 @@ export class DemoManager {
     this.updateState(DemoState.CALLING_GUARDIAN);
     
     try {
-      // Prepare HTTP request
-      const httpRequest = http.createHttp();
-      
       // Generate unique incident ID
       const timestamp = Date.now();
       const incidentId = `INC_${timestamp}`;
       
-      const location: LocationData = {
-        lat: AppConfig.EMERGENCY_LOCATION.lat,
-        lng: AppConfig.EMERGENCY_LOCATION.lng
-      };
+      hilog.info(DOMAIN, TAG, `Incident ID: ${incidentId}`);
       
-      const requestPayload: CallTriggerPayload = {
-        phone: AppConfig.EMERGENCY_PHONE_NUMBER,
-        incident_id: incidentId,
-        user_id: 'USER_WATCH_001', // TODO: Replace with actual user ID
-        severity: 0.85,
-        confidence: 0.92,
-        location: location
-      };
+      // Use APIService to trigger emergency call
+      const success = await this.apiService.sendEmergencyCall(incidentId);
       
-      hilog.info(DOMAIN, TAG, `Sending POST to ${AppConfig.EMERGENCY_CALL_ENDPOINT}`);
-      hilog.info(DOMAIN, TAG, `Payload: ${JSON.stringify(requestPayload)}`);
-      
-      const response = await httpRequest.request(
-        AppConfig.EMERGENCY_CALL_ENDPOINT,
-        {
-          method: http.RequestMethod.POST,
-          header: {
-            'Content-Type': 'application/json',
-            'x-api-key': AppConfig.EMERGENCY_CALL_API_KEY
-          },
-          extraData: JSON.stringify(requestPayload),
-          connectTimeout: 10000,
-          readTimeout: 10000
-        }
-      );
-      
-      hilog.info(DOMAIN, TAG, `Response code: ${response.responseCode}`);
-      hilog.info(DOMAIN, TAG, `Response body: ${JSON.stringify(response.result)}`);
-      
-      if (response.responseCode === 200 || response.responseCode === 201) {
+      if (success) {
         hilog.info(DOMAIN, TAG, '✅ Emergency call triggered successfully');
         this.updateState(DemoState.CALL_TRIGGERED);
       } else {
-        hilog.error(DOMAIN, TAG, `❌ Call trigger failed: HTTP ${response.responseCode}`);
+        hilog.error(DOMAIN, TAG, '❌ Call trigger failed');
         this.updateState(DemoState.ERROR);
       }
       
-      httpRequest.destroy();
-      
     } catch (error) {
-      hilog.error(DOMAIN, TAG, `❌ Call Failed - Network Error: ${JSON.stringify(error)}`);
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      hilog.error(DOMAIN, TAG, `❌ Call Failed - Error: ${errorMsg}`);
       this.updateState(DemoState.ERROR);
     }
   }

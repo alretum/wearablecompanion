@@ -102,6 +102,20 @@ export interface MedicationIntakePayload {
   medicationTime: string;
 }
 
+export interface EmergencyCallLocation {
+  lat: number;
+  lng: number;
+}
+
+export interface EmergencyCallPayload {
+  phone: string;
+  incident_id: string;
+  user_id: string;
+  severity: number;
+  confidence: number;
+  location: EmergencyCallLocation;
+}
+
 export class APIService {
   private deviceId: string;
   private userId: string; // TODO: Implement user authentication
@@ -366,6 +380,68 @@ export class APIService {
       );
 
       hilog.error(DOMAIN, TAG, `Failed to record medication intake: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Trigger emergency phone call via Supabase Edge Function
+   * Endpoint: POST /call-me
+   * 
+   * @param incidentId - Unique incident identifier
+   * @returns Promise<boolean> - Success status
+   */
+  public async sendEmergencyCall(incidentId: string): Promise<boolean> {
+    const location: EmergencyCallLocation = {
+      lat: AppConfig.EMERGENCY_LOCATION.lat,
+      lng: AppConfig.EMERGENCY_LOCATION.lng
+    };
+
+    const payload: EmergencyCallPayload = {
+      phone: AppConfig.EMERGENCY_PHONE_NUMBER,
+      incident_id: incidentId,
+      user_id: this.userId,
+      severity: 0.85,
+      confidence: 0.92,
+      location: location
+    };
+
+    try {
+      hilog.info(DOMAIN, TAG, `🚨 Triggering emergency call for incident: ${incidentId}`);
+      hilog.info(DOMAIN, TAG, `Calling: ${payload.phone}`);
+
+      const response = await this.sendHeartRateRequest(
+        AppConfig.EMERGENCY_CALL_ENDPOINT,
+        http.RequestMethod.POST,
+        payload
+      );
+
+      // Log successful API call
+      this.apiLogger?.logAPICall(
+        AppConfig.EMERGENCY_CALL_ENDPOINT,
+        'POST',
+        payload,
+        true,
+        200,
+        JSON.stringify(response)
+      );
+
+      hilog.info(DOMAIN, TAG, `✅ Emergency call triggered successfully: ${JSON.stringify(response)}`);
+      return true;
+
+    } catch (error) {
+      // Log failed API call
+      this.apiLogger?.logAPICall(
+        AppConfig.EMERGENCY_CALL_ENDPOINT,
+        'POST',
+        payload,
+        false,
+        undefined,
+        undefined,
+        String(error)
+      );
+
+      hilog.error(DOMAIN, TAG, `❌ Failed to trigger emergency call: ${error}`);
       return false;
     }
   }

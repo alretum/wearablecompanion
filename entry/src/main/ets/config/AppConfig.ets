@@ -11,9 +11,16 @@ export class AppConfig {
   static readonly HEART_RATE_ENDPOINT = 'https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate';
   static readonly MEDICATION_INTAKE_ENDPOINT = 'https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/medication-intake';
   
-  // 🛡️ DEMO MODE: Guardian Angel - Twilio Phone Call Trigger
-  // Replace with your actual backend endpoint that triggers the Twilio call
-  static readonly DEMO_CALL_ENDPOINT = 'https://your-backend-url.com/trigger-call';
+  // 🛡️ EMERGENCY CALL: Supabase Edge Function for Phone Call Trigger
+  static readonly EMERGENCY_CALL_ENDPOINT = 'https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/call-me';
+  static readonly EMERGENCY_CALL_API_KEY = 'ParkinsonAtHackatum';
+  
+  // Emergency contact configuration - CHANGE THESE BEFORE BUILD
+  static readonly EMERGENCY_PHONE_NUMBER = '+4915165140425'; // Guardian's phone number
+  static readonly EMERGENCY_LOCATION = {
+    lat: 48.1351,  // Munich, Germany (TUM area)
+    lng: 11.5820
+  };
   
   // Sensor sampling rates (Hz)
   static readonly ACCELEROMETER_RATE = 50; // 10 Hz - reduced for accuracy and stability

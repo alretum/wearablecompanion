@@ -23,12 +23,17 @@ const TAG = 'DemoManager';
 // DEMO CONFIGURATION
 const DEMO_DELAY_MS = 15000; // 15 seconds until phone call trigger
 
-// Request payload interface
+// Request payload interface for Supabase call-me endpoint
 interface CallTriggerPayload {
-  deviceId: string;
-  reason: string;
-  timestamp: string;
-  location: string;
+  phone: string;
+  incident_id: string;
+  user_id: string;
+  severity: number;
+  confidence: number;
+  location: {
+    lat: number;
+    lng: number;
+  };
 }
 
 export enum DemoState {
@@ -208,7 +213,7 @@ export class DemoManager {
    * PHASE 2: Trigger backend to initiate phone call
    */
   private async triggerPhoneCall(): Promise<void> {
-    hilog.info(DOMAIN, TAG, '📞 PHASE 2: Triggering phone call to guardian');
+    hilog.info(DOMAIN, TAG, '📞 PHASE 2: Triggering emergency phone call');
     
     this.updateState(DemoState.CALLING_GUARDIAN);
     
@@ -216,21 +221,29 @@ export class DemoManager {
       // Prepare HTTP request
       const httpRequest = http.createHttp();
       
+      // Generate unique incident ID
+      const timestamp = Date.now();
+      const incidentId = `INC_${timestamp}`;
+      
       const requestPayload: CallTriggerPayload = {
-        deviceId: 'WATCH_DEMO',
-        reason: 'FOG_INCIDENT',
-        timestamp: new Date().toISOString(),
-        location: 'DEMO_MODE'
+        phone: AppConfig.EMERGENCY_PHONE_NUMBER,
+        incident_id: incidentId,
+        user_id: 'USER_WATCH_001', // TODO: Replace with actual user ID
+        severity: 0.85,
+        confidence: 0.92,
+        location: AppConfig.EMERGENCY_LOCATION
       };
       
-      hilog.info(DOMAIN, TAG, `Sending POST to ${AppConfig.DEMO_CALL_ENDPOINT}`);
+      hilog.info(DOMAIN, TAG, `Sending POST to ${AppConfig.EMERGENCY_CALL_ENDPOINT}`);
+      hilog.info(DOMAIN, TAG, `Payload: ${JSON.stringify(requestPayload)}`);
       
       const response = await httpRequest.request(
-        AppConfig.DEMO_CALL_ENDPOINT,
+        AppConfig.EMERGENCY_CALL_ENDPOINT,
         {
           method: http.RequestMethod.POST,
           header: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'x-api-key': AppConfig.EMERGENCY_CALL_API_KEY
           },
           extraData: JSON.stringify(requestPayload),
           connectTimeout: 10000,
@@ -238,8 +251,11 @@ export class DemoManager {
         }
       );
       
+      hilog.info(DOMAIN, TAG, `Response code: ${response.responseCode}`);
+      hilog.info(DOMAIN, TAG, `Response body: ${JSON.stringify(response.result)}`);
+      
       if (response.responseCode === 200 || response.responseCode === 201) {
-        hilog.info(DOMAIN, TAG, '✅ Phone call triggered successfully');
+        hilog.info(DOMAIN, TAG, '✅ Emergency call triggered successfully');
         this.updateState(DemoState.CALL_TRIGGERED);
       } else {
         hilog.error(DOMAIN, TAG, `❌ Call trigger failed: HTTP ${response.responseCode}`);

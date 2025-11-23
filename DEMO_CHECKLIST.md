@@ -9,18 +9,28 @@ All components have been successfully implemented. Use this checklist to verify 
 ## 📋 Pre-Demo Checklist
 
 ### Backend Setup
-- [ ] Install Node.js dependencies: `npm install`
-- [ ] Create `.env` file from `.env.example`
-- [ ] Add Twilio credentials (Account SID, Auth Token)
-- [ ] Configure phone numbers (Twilio number, Guardian number)
-- [ ] Start backend server: `npm start`
-- [ ] Test health endpoint: `curl http://localhost:3000/health`
-- [ ] Start ngrok: `ngrok http 3000`
-- [ ] Copy ngrok HTTPS URL
+- [ ] ✅ Backend is Supabase Edge Function (no local setup needed)
+- [ ] Endpoint: `https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/call-me`
+- [ ] API Key: `ParkinsonAtHackatum` (already configured)
+- [ ] Test endpoint with curl (optional):
+```bash
+curl -X POST https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/call-me \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: ParkinsonAtHackatum" \
+  -d '{
+    "phone": "+4915165140425",
+    "incident_id": "INC_TEST_001",
+    "user_id": "USER_123",
+    "severity": 0.85,
+    "confidence": 0.92,
+    "location": {"lat": 48.1351, "lng": 11.5820}
+  }'
+```
 
 ### Watch App Configuration
 - [ ] Open `entry/src/main/ets/config/AppConfig.ets`
-- [ ] Update `DEMO_CALL_ENDPOINT` with ngrok URL
+- [ ] **IMPORTANT**: Update `EMERGENCY_PHONE_NUMBER` with guardian's number
+- [ ] **IMPORTANT**: Update `EMERGENCY_LOCATION` (lat/lng) if needed
 - [ ] Verify `ras_metronome.mp3` exists in `entry/src/main/resources/rawfile/`
 - [ ] Build the app in DevEco Studio
 - [ ] Deploy to HarmonyOS watch
@@ -34,8 +44,8 @@ All components have been successfully implemented. Use this checklist to verify 
 - [ ] Confirm metronome audio plays
 - [ ] Feel vibration feedback
 - [ ] Wait for 15 second countdown
-- [ ] Check backend logs for incoming request
-- [ ] Verify phone call is made to guardian
+- [ ] **Check watch logs**: `hdc shell hilog | grep DemoManager`
+- [ ] **Verify phone call is made** to the configured number
 - [ ] Test "Stop Demo" button
 - [ ] Practice shake gesture multiple times
 
@@ -44,18 +54,15 @@ All components have been successfully implemented. Use this checklist to verify 
 ## 🎯 Demo Day Checklist
 
 ### 30 Minutes Before
-- [ ] Start backend server
-- [ ] Start ngrok (get stable URL)
-- [ ] Update AppConfig if ngrok URL changed
-- [ ] Rebuild and deploy app if needed
+- [ ] ✅ Backend already running (Supabase Edge Function)
+- [ ] Verify `EMERGENCY_PHONE_NUMBER` is correct in AppConfig
 - [ ] Charge watch to 100%
 - [ ] Test full flow once
 - [ ] Have backup phone ready for guardian role
 
 ### 5 Minutes Before
 - [ ] Watch connected to WiFi
-- [ ] Backend server running (check logs)
-- [ ] ngrok tunnel active
+- [ ] ✅ Backend is always running (Supabase)
 - [ ] Start monitoring on watch
 - [ ] Silence notifications (focus mode)
 - [ ] Have guardian phone ready

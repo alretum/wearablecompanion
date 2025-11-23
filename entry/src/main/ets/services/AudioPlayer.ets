@@ -42,6 +42,7 @@ export class AudioPlayer {
     this.cachedFilePath = `${context.cacheDir}/${AudioPlayer.CACHED_FILENAME}`;
     
     hilog.info(DOMAIN, TAG, `Initializing audio player, cache path: ${this.cachedFilePath}`);
+    hilog.info(DOMAIN, TAG, `Context type: ${typeof context}, resourceManager: ${context.resourceManager !== undefined}`);
     
     try {
       // Step 1: Copy metronome from resources to cache
@@ -81,17 +82,23 @@ export class AudioPlayer {
     try {
       // Get resource manager
       const resMgr: resourceManager.ResourceManager = this.context.resourceManager;
+      hilog.info(DOMAIN, TAG, `Resource manager obtained: ${resMgr !== null}`);
       
       // Method 1: Try using getRawFd (more reliable than getRawFileContent)
-      hilog.info(DOMAIN, TAG, `Opening resource file descriptor: ${AudioPlayer.METRONOME_RESOURCE}`);
+      hilog.info(DOMAIN, TAG, `Attempting getRawFd for: ${AudioPlayer.METRONOME_RESOURCE}`);
       
       try {
         const rawFd = await resMgr.getRawFd(AudioPlayer.METRONOME_RESOURCE);
-        hilog.info(DOMAIN, TAG, `Got raw FD - fd: ${rawFd.fd}, offset: ${rawFd.offset}, length: ${rawFd.length}`);
+        hilog.info(DOMAIN, TAG, `✅ Got raw FD - fd: ${rawFd.fd}, offset: ${rawFd.offset}, length: ${rawFd.length}`);
         
-        // Read from the file descriptor
+        // Read from the file descriptor with correct offset
         const buffer = new ArrayBuffer(rawFd.length);
-        fileIo.readSync(rawFd.fd, buffer, { offset: rawFd.offset, length: rawFd.length });
+        const readBytes = fileIo.readSync(rawFd.fd, buffer, { 
+          offset: rawFd.offset, 
+          length: rawFd.length 
+        });
+        
+        hilog.info(DOMAIN, TAG, `Read ${readBytes} bytes from raw FD`);
         
         // Write to cache directory
         const outFile = fileIo.openSync(
@@ -99,20 +106,23 @@ export class AudioPlayer {
           fileIo.OpenMode.CREATE | fileIo.OpenMode.WRITE_ONLY | fileIo.OpenMode.TRUNC
         );
         
-        fileIo.writeSync(outFile.fd, buffer);
+        const writeBytes = fileIo.writeSync(outFile.fd, buffer);
         fileIo.closeSync(outFile);
+        
+        hilog.info(DOMAIN, TAG, `Wrote ${writeBytes} bytes to cache`);
         
         // Close the raw file descriptor
         resMgr.closeRawFd(AudioPlayer.METRONOME_RESOURCE);
         
-        hilog.info(DOMAIN, TAG, `✅ Metronome cached to: ${this.cachedFilePath} (${rawFd.length} bytes)`);
+        hilog.info(DOMAIN, TAG, `✅✅ Metronome cached successfully to: ${this.cachedFilePath}`);
+        return;
         
       } catch (fdError) {
         // Fallback: Try getRawFileContent
-        hilog.warn(DOMAIN, TAG, `getRawFd failed, trying getRawFileContent: ${JSON.stringify(fdError)}`);
+        hilog.warn(DOMAIN, TAG, `getRawFd failed (${JSON.stringify(fdError)}), trying getRawFileContent...`);
         
         const fileData: Uint8Array = await resMgr.getRawFileContent(AudioPlayer.METRONOME_RESOURCE);
-        hilog.info(DOMAIN, TAG, `Resource read via getRawFileContent: ${fileData.byteLength} bytes`);
+        hilog.info(DOMAIN, TAG, `✅ Resource read via getRawFileContent: ${fileData.byteLength} bytes`);
         
         const file = fileIo.openSync(
           this.cachedFilePath, 
@@ -122,7 +132,7 @@ export class AudioPlayer {
         fileIo.writeSync(file.fd, fileData.buffer);
         fileIo.closeSync(file);
         
-        hilog.info(DOMAIN, TAG, `✅ Metronome cached to: ${this.cachedFilePath}`);
+        hilog.info(DOMAIN, TAG, `✅✅ Metronome cached to: ${this.cachedFilePath}`);
       }
       
     } catch (error) {

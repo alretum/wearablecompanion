@@ -15,16 +15,19 @@ export default class EntryAbility extends UIAbility {
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     
-    // Initialize MonitoringService with context
+    // Initialize MonitoringService with context (async operation)
     this.monitoringService = MonitoringService.getInstance();
-    this.monitoringService.initialize(this.context);
-    hilog.info(DOMAIN, 'testTag', 'MonitoringService initialized with context');
-    
-    // Auto-start monitoring if configured
-    if (AppConfig.AUTO_START_MONITORING) {
-      this.monitoringService.startMonitoring();
-      hilog.info(DOMAIN, 'testTag', 'Auto-started monitoring');
-    }
+    this.monitoringService.initialize(this.context).then(() => {
+      hilog.info(DOMAIN, 'testTag', 'MonitoringService initialized with context');
+      
+      // Auto-start monitoring if configured
+      if (AppConfig.AUTO_START_MONITORING) {
+        this.monitoringService!.startMonitoring();
+        hilog.info(DOMAIN, 'testTag', 'Auto-started monitoring');
+      }
+    }).catch((error: Error) => {
+      hilog.error(DOMAIN, 'testTag', `Failed to initialize MonitoringService: ${error.message}`);
+    });
   }
 
   onDestroy(): void {

@@ -11,6 +11,7 @@
 import { SensorManager } from '../sensors/SensorManager';
 import { PredictionAlgorithm } from '../algorithms/PredictionAlgorithm';
 import { TremorDetector } from '../algorithms/TremorDetector';
+import { GuardianService } from './GuardianService.ets';
 import { APIService, ConnectivityResults } from '../connectivity/APIService';
 import { ReportLogger } from './ReportLogger';
 import { HeartRateLogger } from './HeartRateLogger';
@@ -49,6 +50,7 @@ export class MonitoringService {
   private sensorManager: SensorManager;
   private predictionAlgorithm: PredictionAlgorithm;
   private tremorDetector: TremorDetector;
+  private guardianService: GuardianService;
   private apiService: APIService;
   private reportLogger: ReportLogger | null = null;
   private heartRateLogger: HeartRateLogger | null = null;
@@ -68,6 +70,7 @@ export class MonitoringService {
     this.sensorManager = new SensorManager();
     this.predictionAlgorithm = new PredictionAlgorithm();
     this.tremorDetector = new TremorDetector();
+    this.guardianService = GuardianService.getInstance();
     this.apiService = new APIService();
     this.appState = new AppState();
     
@@ -87,7 +90,7 @@ export class MonitoringService {
   /**
    * Initialize ReportLogger with context
    */
-  public initialize(context: common.UIAbilityContext): void {
+  public async initialize(context: common.UIAbilityContext): Promise<void> {
     this.context = context;
     const userId = 'USER_' + Date.now(); // TODO: Replace with actual user ID
     const deviceId = 'DEVICE_' + Date.now();
@@ -96,6 +99,14 @@ export class MonitoringService {
     
     // Initialize API logger
     this.apiService.initializeLogger(context, userId, deviceId);
+    
+    // Initialize GuardianService for FoG detection
+    try {
+      await this.guardianService.initialize(context);
+      hilog.info(DOMAIN, TAG, 'GuardianService initialized successfully');
+    } catch (error) {
+      hilog.error(DOMAIN, TAG, `Failed to initialize GuardianService: ${error}`);
+    }
     
     // Initialize data collection logger if enabled
     if (AppConfig.ENABLE_DATA_COLLECTION) {
@@ -108,7 +119,7 @@ export class MonitoringService {
     // Request all necessary permissions
     this.requestAllPermissions();
     
-    hilog.info(DOMAIN, TAG, 'MonitoringService initialized with ReportLogger, HeartRateLogger, DataCollectionLogger, and GPS');
+    hilog.info(DOMAIN, TAG, 'MonitoringService initialized with ReportLogger, HeartRateLogger, GuardianService, DataCollectionLogger, and GPS');
   }
 
   /**
@@ -238,6 +249,9 @@ export class MonitoringService {
     this.startDataSync();
     this.startHeartRateAggregation();
     
+    // Start GuardianService for continuous FoG detection
+    this.guardianService.startMonitoring();
+    
     this.notifyStateChange();
     hilog.info(DOMAIN, TAG, 'Monitoring started successfully');
   }
@@ -256,6 +270,9 @@ export class MonitoringService {
     this.sensorManager.stopMonitoring();
     this.stopDataSync();
     this.stopHeartRateAggregation();
+    
+    // Stop GuardianService
+    this.guardianService.stopMonitoring();
     
     // Stop continuous background task
     this.stopContinuousTask();
@@ -697,11 +714,26 @@ export class MonitoringService {
   }
 
   /**
+   * Get GuardianService FoG detection state
+   */
+  public isFogActive(): boolean {
+    return this.guardianService.isFogActive();
+  }
+
+  /**
+   * Get GuardianService monitoring state
+   */
+  public isGuardianActive(): boolean {
+    return this.guardianService.isActive();
+  }
+
+  /**
    * Cleanup resources
    */
-  public destroy(): void {
+  public async destroy(): Promise<void> {
     this.stopMonitoring();
     this.stopContinuousTask();
+    await this.guardianService.cleanup();
     this.predictionAlgorithm.reset();
     this.tremorDetector.reset();
     hilog.info(DOMAIN, TAG, 'MonitoringService destroyed');

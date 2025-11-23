@@ -72,6 +72,11 @@ struct Index {
           // Status Display
           this.StatusCard()
 
+          // FoG Detection Status
+          if (this.monitoringService.isGuardianActive()) {
+            this.FogStatusCard()
+          }
+
           // Alert Display
           if (this.appState.latestPrediction !== null || this.appState.latestTremor !== null) {
             this.AlertCard()
@@ -179,6 +184,56 @@ struct Index {
     .backgroundColor(Color.White)
     .borderRadius(16)
     .shadow({ radius: 8, color: 0x10000000, offsetX: 0, offsetY: 2 })
+    .margin({ bottom: 16 })
+  }
+
+  @Builder
+  FogStatusCard() {
+    Row() {
+      Column() {
+        Text('🛡️ Guardian Service')
+          .fontSize(14)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C1C1E')
+          .margin({ bottom: 4 })
+
+        Text(this.monitoringService.isFogActive() ? 'FoG DETECTED - Intervention Active' : 'Monitoring...')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(this.monitoringService.isFogActive() ? '#FF3B30' : '#2E7D32')
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      // FoG indicator
+      if (this.monitoringService.isFogActive()) {
+        Column() {
+          Text('🚨')
+            .fontSize(32)
+          Text('FREEZING')
+            .fontSize(10)
+            .fontColor('#FF3B30')
+            .fontWeight(FontWeight.Bold)
+        }
+      } else {
+        Circle({ width: 16, height: 16 })
+          .fill('#2E7D32')
+      }
+    }
+    .width('100%')
+    .padding(20)
+    .backgroundColor(this.monitoringService.isFogActive() ? '#FFEBEE' : Color.White)
+    .borderRadius(16)
+    .border({ 
+      width: this.monitoringService.isFogActive() ? 2 : 0, 
+      color: '#FF3B30' 
+    })
+    .shadow({ 
+      radius: this.monitoringService.isFogActive() ? 12 : 8, 
+      color: this.monitoringService.isFogActive() ? 0x30FF3B30 : 0x10000000, 
+      offsetX: 0, 
+      offsetY: this.monitoringService.isFogActive() ? 4 : 2 
+    })
     .margin({ bottom: 16 })
   }
 

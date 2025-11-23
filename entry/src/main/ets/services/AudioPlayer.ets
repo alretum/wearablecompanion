@@ -45,16 +45,22 @@ export class AudioPlayer {
     
     try {
       // Step 1: Copy metronome from resources to cache
+      hilog.info(DOMAIN, TAG, 'Step 1: Copying metronome file to cache...');
       await this.copyResourceToCache();
+      hilog.info(DOMAIN, TAG, '✅ Step 1 complete: File copied to cache');
       
       // Step 2: Create AVPlayer instance
+      hilog.info(DOMAIN, TAG, 'Step 2: Creating AVPlayer instance...');
       this.avPlayer = await media.createAVPlayer();
+      hilog.info(DOMAIN, TAG, '✅ Step 2 complete: AVPlayer created');
       
       // Step 3: Set up event callbacks
+      hilog.info(DOMAIN, TAG, 'Step 3: Setting up callbacks...');
       this.setupCallbacks();
+      hilog.info(DOMAIN, TAG, '✅ Step 3 complete: Callbacks registered');
       
       this.isInitialized = true;
-      hilog.info(DOMAIN, TAG, '✅ AudioPlayer initialized successfully');
+      hilog.info(DOMAIN, TAG, '✅✅✅ AudioPlayer initialized successfully');
       
     } catch (error) {
       const errorMsg = `Failed to initialize AudioPlayer: ${JSON.stringify(error)}`;
@@ -135,9 +141,12 @@ export class AudioPlayer {
    * Play metronome in continuous loop
    */
   public async playMetronome(): Promise<void> {
+    hilog.info(DOMAIN, TAG, `🎵 playMetronome called - isInitialized: ${this.isInitialized}, avPlayer: ${this.avPlayer !== null}, isPlaying: ${this.isPlaying}`);
+    
     if (!this.isInitialized || !this.avPlayer) {
-      hilog.error(DOMAIN, TAG, 'AudioPlayer not initialized');
-      throw new Error('AudioPlayer not initialized');
+      const error = 'AudioPlayer not initialized';
+      hilog.error(DOMAIN, TAG, `❌ ${error}`);
+      throw new Error(error);
     }
     
     if (this.isPlaying) {
@@ -146,24 +155,27 @@ export class AudioPlayer {
     }
     
     try {
-      hilog.info(DOMAIN, TAG, '🎵 Starting metronome playback');
+      hilog.info(DOMAIN, TAG, '🎵 Starting metronome playback - current AVPlayer state: ' + this.avPlayer.state);
       
       // Set file URI (must be file:// protocol)
       const fileUri = `file://${this.cachedFilePath}`;
-      hilog.info(DOMAIN, TAG, `Loading audio from: ${fileUri}`);
+      hilog.info(DOMAIN, TAG, `Setting audio URL: ${fileUri}`);
       
       this.avPlayer.url = fileUri;
+      hilog.info(DOMAIN, TAG, 'URL set, enabling loop mode');
       
       // Enable loop mode
       this.avPlayer.loop = true;
+      hilog.info(DOMAIN, TAG, 'Loop enabled, waiting for prepared state...');
       
       // Wait for player to be prepared
       await this.waitForState('prepared');
+      hilog.info(DOMAIN, TAG, '✅ Player prepared, calling play()...');
       
       // Start playback
       await this.avPlayer.play();
       
-      hilog.info(DOMAIN, TAG, '✅ Metronome playing (loop enabled)');
+      hilog.info(DOMAIN, TAG, '✅✅✅ Metronome playing (loop enabled)');
       
     } catch (error) {
       const errorMsg = `Failed to play metronome: ${JSON.stringify(error)}`;

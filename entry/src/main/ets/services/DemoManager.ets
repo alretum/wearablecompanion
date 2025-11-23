@@ -140,21 +140,25 @@ export class DemoManager {
   private async startInterventionPhase(): Promise<void> {
     hilog.info(DOMAIN, TAG, '⚡ PHASE 1: Starting immediate intervention');
     
-    try {
-      // Start metronome audio
-      if (this.audioPlayer) {
+    // Start continuous vibration first (doesn't need async)
+    this.startVibration();
+    hilog.info(DOMAIN, TAG, '📳 Vibration started');
+    
+    // Start metronome audio
+    if (!this.audioPlayer) {
+      hilog.error(DOMAIN, TAG, '❌ AudioPlayer is null - cannot play metronome');
+    } else {
+      try {
+        hilog.info(DOMAIN, TAG, '🎵 Attempting to start metronome...');
         await this.audioPlayer.playMetronome();
-        hilog.info(DOMAIN, TAG, '🎵 Metronome started');
+        hilog.info(DOMAIN, TAG, '✅ Metronome started successfully');
+      } catch (error) {
+        hilog.error(DOMAIN, TAG, `❌ Failed to play metronome: ${JSON.stringify(error)}`);
+        // Continue with demo even if audio fails
       }
-      
-      // Start continuous vibration
-      this.startVibration();
-      hilog.info(DOMAIN, TAG, '📳 Vibration started');
-      
-      hilog.info(DOMAIN, TAG, '✅ Intervention phase active - Visual/Audio/Haptic feedback running');
-    } catch (error) {
-      hilog.error(DOMAIN, TAG, `❌ Failed to start intervention: ${error}`);
     }
+    
+    hilog.info(DOMAIN, TAG, '✅ Intervention phase active - Visual/Audio/Haptic feedback running');
   }
   
   /**

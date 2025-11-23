@@ -12,6 +12,7 @@ import { SensorManager } from '../sensors/SensorManager';
 import { PredictionAlgorithm } from '../algorithms/PredictionAlgorithm';
 import { TremorDetector } from '../algorithms/TremorDetector';
 import { GuardianService } from './GuardianService.ets';
+import { DemoManager, DemoState } from './DemoManager';
 import { APIService, ConnectivityResults } from '../connectivity/APIService';
 import { ReportLogger } from './ReportLogger';
 import { HeartRateLogger } from './HeartRateLogger';
@@ -51,6 +52,7 @@ export class MonitoringService {
   private predictionAlgorithm: PredictionAlgorithm;
   private tremorDetector: TremorDetector;
   private guardianService: GuardianService;
+  private demoManager: DemoManager;
   private apiService: APIService;
   private reportLogger: ReportLogger | null = null;
   private heartRateLogger: HeartRateLogger | null = null;
@@ -71,6 +73,7 @@ export class MonitoringService {
     this.predictionAlgorithm = new PredictionAlgorithm();
     this.tremorDetector = new TremorDetector();
     this.guardianService = GuardianService.getInstance();
+    this.demoManager = DemoManager.getInstance();
     this.apiService = new APIService();
     this.appState = new AppState();
     
@@ -106,6 +109,14 @@ export class MonitoringService {
       hilog.info(DOMAIN, TAG, 'GuardianService initialized successfully');
     } catch (error) {
       hilog.error(DOMAIN, TAG, `Failed to initialize GuardianService: ${error}`);
+    }
+    
+    // Initialize DemoManager for Guardian Angel demo
+    try {
+      await this.demoManager.initialize(context);
+      hilog.info(DOMAIN, TAG, '🛡️ DemoManager initialized successfully');
+    } catch (error) {
+      hilog.error(DOMAIN, TAG, `Failed to initialize DemoManager: ${error}`);
     }
     
     // Initialize data collection logger if enabled
@@ -352,6 +363,9 @@ export class MonitoringService {
     if (this.appState.currentHeartRate === null) {
       return; // Wait for heart rate data
     }
+
+    // 🛡️ DEMO MODE: Check for violent shake trigger (Guardian Angel Demo)
+    this.checkDemoTrigger(accel);
 
     // Detect tremors (only if enabled)
     if (AppConfig.ENABLE_TREMOR_DETECTION) {
@@ -728,12 +742,51 @@ export class MonitoringService {
   }
 
   /**
+   * 🛡️ DEMO MODE: Check for violent shake trigger
+   * Uses buffered accelerometer data to detect demo trigger
+   */
+  private checkDemoTrigger(accel: AccelerometerData): void {
+    // Don't check if demo already active
+    if (this.demoManager.isActive()) {
+      return;
+    }
+    
+    // Get the accelerometer buffer from tremorDetector (50 samples)
+    const buffer = this.tremorDetector.getAccelBuffer();
+    if (buffer.length < 10) {
+      return; // Need at least 10 samples
+    }
+    
+    // Extract X, Y, Z arrays
+    const xData = buffer.map(a => a.x);
+    const yData = buffer.map(a => a.y);
+    const zData = buffer.map(a => a.z);
+    
+    // Check for violent shake using MotionAnalyzer
+    const motionAnalyzer = this.tremorDetector.getMotionAnalyzer();
+    const isDemoTriggered = motionAnalyzer.detectDemoTrigger(xData, yData, zData);
+    
+    if (isDemoTriggered) {
+      hilog.info(DOMAIN, TAG, '🚨 Demo trigger detected - Starting Guardian Angel sequence');
+      this.demoManager.startDemoSequence();
+    }
+  }
+
+  /**
+   * Get DemoManager instance for UI control
+   */
+  public getDemoManager(): DemoManager {
+    return this.demoManager;
+  }
+
+  /**
    * Cleanup resources
    */
   public async destroy(): Promise<void> {
     this.stopMonitoring();
     this.stopContinuousTask();
     await this.guardianService.cleanup();
+    this.demoManager.destroy();
     this.predictionAlgorithm.reset();
     this.tremorDetector.reset();
     hilog.info(DOMAIN, TAG, 'MonitoringService destroyed');

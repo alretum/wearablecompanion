@@ -11,6 +11,10 @@ export class AppConfig {
   static readonly HEART_RATE_ENDPOINT = 'https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate';
   static readonly MEDICATION_INTAKE_ENDPOINT = 'https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/medication-intake';
   
+  // 🛡️ DEMO MODE: Guardian Angel - Twilio Phone Call Trigger
+  // Replace with your actual backend endpoint that triggers the Twilio call
+  static readonly DEMO_CALL_ENDPOINT = 'https://your-backend-url.com/trigger-call';
+  
   // Sensor sampling rates (Hz)
   static readonly ACCELEROMETER_RATE = 50; // 10 Hz - reduced for accuracy and stability
   static readonly GYROSCOPE_RATE = 50; // 10 Hz - reduced for accuracy and stability

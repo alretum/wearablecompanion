@@ -1,11 +1,13 @@
 import { MonitoringService } from '../services/MonitoringService';
 import { AppState, MonitoringStatus } from '../sensors/SensorData';
+import { DemoState } from '../services/DemoManager';
 
 @Entry
 @Component
 struct Index {
   @State appState: AppState = new AppState();
   @State medicationConfirmation: boolean = false;
+  @State demoState: DemoState = DemoState.INACTIVE;
   private monitoringService: MonitoringService = MonitoringService.getInstance();
   private uiUpdateTimer: number = -1;
   private confirmationTimer: number = -1;
@@ -16,12 +18,19 @@ struct Index {
       this.appState = state;
     });
     
+    // Register for demo state updates
+    this.monitoringService.getDemoManager().onStateChange((state: DemoState) => {
+      this.demoState = state;
+    });
+    
     // Get initial state
     this.appState = this.monitoringService.getState();
+    this.demoState = this.monitoringService.getDemoManager().getState();
     
     // Start periodic UI updates to refresh sensor data display
     this.uiUpdateTimer = setInterval(() => {
       this.appState = this.monitoringService.getState();
+      this.demoState = this.monitoringService.getDemoManager().getState();
     }, 1000); // Update every second
   }
   
@@ -38,64 +47,74 @@ struct Index {
   }
 
   build() {
-    Scroll() {
-      Column() {
-        // Header with gradient background
+    Stack() {
+      // Main content
+      Scroll() {
         Column() {
-          Text('Parkinson\'s')
-            .fontSize(20)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(Color.White)
-          Text('Monitor')
-            .fontSize(28)
-            .fontWeight(900)
-            .fontColor(Color.White)
-            .margin({ top: -4 })
+          // Header with gradient background
+          Column() {
+            Text('Parkinson\'s')
+              .fontSize(20)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(Color.White)
+            Text('Monitor')
+              .fontSize(28)
+              .fontWeight(900)
+              .fontColor(Color.White)
+              .margin({ top: -4 })
+          }
+          .width('100%')
+          .padding({ top: 16, bottom: 20, left: 16, right: 16 })
+          .linearGradient({
+            angle: 135,
+            colors: [[0x56AB2F, 0.0], [0xA8E063, 1.0]]
+          })
+          .borderRadius({ bottomLeft: 24, bottomRight: 24 })
+
+          Column() {
+            // Medication Button
+            this.MedicationButton()
+
+            // Medication Confirmation
+            if (this.medicationConfirmation) {
+              this.MedicationConfirmation()
+            }
+
+            // Status Display
+            this.StatusCard()
+
+            // FoG Detection Status
+            if (this.monitoringService.isGuardianActive()) {
+              this.FogStatusCard()
+            }
+
+            // Alert Display
+            if (this.appState.latestPrediction !== null || this.appState.latestTremor !== null) {
+              this.AlertCard()
+            }
+
+            // Statistics
+            this.StatisticsCard()
+
+            // Control Buttons
+            this.ControlButtons()
+          }
+          .padding(16)
         }
         .width('100%')
-        .padding({ top: 16, bottom: 20, left: 16, right: 16 })
-        .linearGradient({
-          angle: 135,
-          colors: [[0x56AB2F, 0.0], [0xA8E063, 1.0]]
-        })
-        .borderRadius({ bottomLeft: 24, bottomRight: 24 })
-
-        Column() {
-          // Medication Button
-          this.MedicationButton()
-
-          // Medication Confirmation
-          if (this.medicationConfirmation) {
-            this.MedicationConfirmation()
-          }
-
-          // Status Display
-          this.StatusCard()
-
-          // FoG Detection Status
-          if (this.monitoringService.isGuardianActive()) {
-            this.FogStatusCard()
-          }
-
-          // Alert Display
-          if (this.appState.latestPrediction !== null || this.appState.latestTremor !== null) {
-            this.AlertCard()
-          }
-
-          // Statistics
-          this.StatisticsCard()
-
-          // Control Buttons
-          this.ControlButtons()
-        }
-        .padding(16)
       }
       .width('100%')
+      .height('100%')
+      .backgroundColor('#F0F8F4')
+      .scrollBar(BarState.Off)
+
+      // 🛡️ DEMO MODE: Intervention Overlay
+      if (this.demoState !== DemoState.INACTIVE) {
+        this.DemoInterventionOverlay()
+      }
     }
     .width('100%')
     .height('100%')
-    .backgroundColor('#F0F8F4')
-    .scrollBar(BarState.Off)
   }
 
   @Builder
@@ -464,6 +483,171 @@ struct Index {
     }
     .width('100%')
     .margin({ bottom: 20 })
+  }
+
+  @Builder
+  DemoInterventionOverlay() {
+    Column() {
+      if (this.demoState === DemoState.INTERVENTION) {
+        // PHASE 1: Intervention Screen (Red flashing)
+        Column() {
+          Text('🛡️')
+            .fontSize(64)
+            .margin({ bottom: 24 })
+          
+          Text('BREATHE.')
+            .fontSize(32)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Color.White)
+            .margin({ bottom: 8 })
+          
+          Text('STEP TO THE BEAT.')
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Color.White)
+            .margin({ bottom: 32 })
+          
+          Text('🎵 Metronome Active')
+            .fontSize(16)
+            .fontColor(Color.White)
+            .opacity(0.9)
+            .margin({ bottom: 8 })
+          
+          Text('📳 Haptic Feedback Active')
+            .fontSize(16)
+            .fontColor(Color.White)
+            .opacity(0.9)
+            .margin({ bottom: 32 })
+          
+          Text('Guardian will be called in 15 seconds...')
+            .fontSize(14)
+            .fontColor(Color.White)
+            .opacity(0.8)
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#D32F2F')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .padding(24)
+        .animation({
+          duration: 500,
+          tempo: 2.0,
+          iterations: -1,
+          playMode: PlayMode.Alternate
+        })
+        
+      } else if (this.demoState === DemoState.CALLING_GUARDIAN) {
+        // PHASE 2: Calling Screen
+        Column() {
+          Text('📞')
+            .fontSize(80)
+            .margin({ bottom: 32 })
+          
+          Text('Calling Guardian...')
+            .fontSize(28)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Color.White)
+            .margin({ bottom: 16 })
+          
+          Text('Triggering phone call')
+            .fontSize(16)
+            .fontColor(Color.White)
+            .opacity(0.9)
+            .margin({ bottom: 32 })
+          
+          // Loading animation
+          LoadingProgress()
+            .color(Color.White)
+            .width(60)
+            .height(60)
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#1976D2')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .padding(24)
+        
+      } else if (this.demoState === DemoState.CALL_TRIGGERED) {
+        // SUCCESS: Call Triggered
+        Column() {
+          Text('✅')
+            .fontSize(80)
+            .margin({ bottom: 32 })
+          
+          Text('Guardian Notified')
+            .fontSize(28)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Color.White)
+            .margin({ bottom: 16 })
+          
+          Text('Help is on the way')
+            .fontSize(16)
+            .fontColor(Color.White)
+            .opacity(0.9)
+            .margin({ bottom: 48 })
+          
+          Button('Stop Demo')
+            .width('80%')
+            .height(56)
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .backgroundColor(Color.White)
+            .fontColor('#2E7D32')
+            .borderRadius(16)
+            .onClick(() => {
+              this.monitoringService.getDemoManager().stopDemo();
+            })
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#2E7D32')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .padding(24)
+        
+      } else if (this.demoState === DemoState.ERROR) {
+        // ERROR: Call Failed
+        Column() {
+          Text('❌')
+            .fontSize(80)
+            .margin({ bottom: 32 })
+          
+          Text('Call Failed')
+            .fontSize(28)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(Color.White)
+            .margin({ bottom: 16 })
+          
+          Text('Network error - Check connection')
+            .fontSize(16)
+            .fontColor(Color.White)
+            .opacity(0.9)
+            .margin({ bottom: 48 })
+          
+          Button('Stop Demo')
+            .width('80%')
+            .height(56)
+            .fontSize(18)
+            .fontWeight(FontWeight.Bold)
+            .backgroundColor(Color.White)
+            .fontColor('#FF3B30')
+            .borderRadius(16)
+            .onClick(() => {
+              this.monitoringService.getDemoManager().stopDemo();
+            })
+        }
+        .width('100%')
+        .height('100%')
+        .backgroundColor('#C62828')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .padding(24)
+      }
+    }
+    .width('100%')
+    .height('100%')
   }
 
   // Helper methods

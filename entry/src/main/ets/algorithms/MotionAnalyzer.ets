@@ -226,4 +226,56 @@ export class MotionAnalyzer {
       isValid: false
     };
   }
+
+  /**
+   * DEMO MODE: Detect violent wrist shake for Guardian Angel demo
+   * 
+   * Trigger Condition: |Magnitude - 9.8| > 6.0 m/s²
+   * This represents approximately 0.6G of shaking force beyond normal gravity.
+   * 
+   * Algorithm:
+   * 1. Calculate Euclidean magnitude for each sample
+   * 2. Subtract gravity baseline (9.8 m/s²)
+   * 3. Check if any sample exceeds threshold
+   * 
+   * @param xData - Array of raw X accelerometer values
+   * @param yData - Array of raw Y accelerometer values
+   * @param zData - Array of raw Z accelerometer values
+   * @returns true if violent shake detected, false otherwise
+   */
+  public detectDemoTrigger(xData: number[], yData: number[], zData: number[]): boolean {
+    const DEMO_SHAKE_THRESHOLD = 6.0; // m/s² beyond gravity
+    const GRAVITY_BASELINE = 9.8;     // Standard gravity
+    
+    // Validate input
+    if (xData.length !== yData.length || yData.length !== zData.length) {
+      return false;
+    }
+    
+    if (xData.length < 10) { // Need at least 10 samples to detect shake
+      return false;
+    }
+    
+    // Check each sample for violent shake
+    for (let i = 0; i < xData.length; i++) {
+      // Calculate Euclidean magnitude
+      const magnitude = Math.sqrt(
+        xData[i] * xData[i] + 
+        yData[i] * yData[i] + 
+        zData[i] * zData[i]
+      );
+      
+      // Calculate deviation from gravity baseline
+      const deviation = Math.abs(magnitude - GRAVITY_BASELINE);
+      
+      // Check if deviation exceeds threshold
+      if (deviation > DEMO_SHAKE_THRESHOLD) {
+        hilog.info(DOMAIN, TAG, 
+          `🚨 DEMO TRIGGER DETECTED: magnitude=${magnitude.toFixed(2)}, deviation=${deviation.toFixed(2)} > ${DEMO_SHAKE_THRESHOLD}`);
+        return true;
+      }
+    }
+    
+    return false;
+  }
 }

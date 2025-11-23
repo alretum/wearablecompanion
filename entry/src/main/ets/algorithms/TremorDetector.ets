@@ -165,4 +165,18 @@ export class TremorDetector {
   public getTremorCount(): number {
     return this.detectedTremors.length;
   }
+
+  /**
+   * Get accelerometer buffer (for demo trigger detection)
+   */
+  public getAccelBuffer(): AccelerometerData[] {
+    return [...this.accelBuffer];
+  }
+
+  /**
+   * Get MotionAnalyzer instance (for demo trigger detection)
+   */
+  public getMotionAnalyzer(): MotionAnalyzer {
+    return this.motionAnalyzer;
+  }
 }

@@ -23,6 +23,14 @@ const TAG = 'DemoManager';
 // DEMO CONFIGURATION
 const DEMO_DELAY_MS = 15000; // 15 seconds until phone call trigger
 
+// Request payload interface
+interface CallTriggerPayload {
+  deviceId: string;
+  reason: string;
+  timestamp: string;
+  location: string;
+}
+
 export enum DemoState {
   INACTIVE = 'INACTIVE',
   INTERVENTION = 'INTERVENTION',
@@ -204,7 +212,7 @@ export class DemoManager {
       // Prepare HTTP request
       const httpRequest = http.createHttp();
       
-      const requestPayload = {
+      const requestPayload: CallTriggerPayload = {
         deviceId: 'WATCH_DEMO',
         reason: 'FOG_INCIDENT',
         timestamp: new Date().toISOString(),

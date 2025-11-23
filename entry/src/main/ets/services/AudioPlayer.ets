@@ -57,8 +57,9 @@ export class AudioPlayer {
       hilog.info(DOMAIN, TAG, '✅ AudioPlayer initialized successfully');
       
     } catch (error) {
-      hilog.error(DOMAIN, TAG, `❌ Failed to initialize AudioPlayer: ${JSON.stringify(error)}`);
-      throw error;
+      const errorMsg = `Failed to initialize AudioPlayer: ${JSON.stringify(error)}`;
+      hilog.error(DOMAIN, TAG, `❌ ${errorMsg}`);
+      throw new Error(errorMsg);
     }
   }
 
@@ -93,8 +94,9 @@ export class AudioPlayer {
       hilog.info(DOMAIN, TAG, `✅ Metronome cached to: ${this.cachedFilePath}`);
       
     } catch (error) {
-      hilog.error(DOMAIN, TAG, `❌ Failed to copy resource to cache: ${JSON.stringify(error)}`);
-      throw error;
+      const errorMsg = `Failed to copy resource to cache: ${JSON.stringify(error)}`;
+      hilog.error(DOMAIN, TAG, `❌ ${errorMsg}`);
+      throw new Error(errorMsg);
     }
   }
 
@@ -164,8 +166,9 @@ export class AudioPlayer {
       hilog.info(DOMAIN, TAG, '✅ Metronome playing (loop enabled)');
       
     } catch (error) {
-      hilog.error(DOMAIN, TAG, `❌ Failed to play metronome: ${JSON.stringify(error)}`);
-      throw error;
+      const errorMsg = `Failed to play metronome: ${JSON.stringify(error)}`;
+      hilog.error(DOMAIN, TAG, `❌ ${errorMsg}`);
+      throw new Error(errorMsg);
     }
   }
 

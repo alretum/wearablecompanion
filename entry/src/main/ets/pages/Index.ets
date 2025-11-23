@@ -5,8 +5,10 @@ import { AppState, MonitoringStatus } from '../sensors/SensorData';
 @Component
 struct Index {
   @State appState: AppState = new AppState();
+  @State medicationConfirmation: boolean = false;
   private monitoringService: MonitoringService = MonitoringService.getInstance();
   private uiUpdateTimer: number = -1;
+  private confirmationTimer: number = -1;
 
   aboutToAppear(): void {
     // Register for state updates
@@ -24,10 +26,14 @@ struct Index {
   }
   
   aboutToDisappear(): void {
-    // Clean up timer
+    // Clean up timers
     if (this.uiUpdateTimer !== -1) {
       clearInterval(this.uiUpdateTimer);
       this.uiUpdateTimer = -1;
+    }
+    if (this.confirmationTimer !== -1) {
+      clearTimeout(this.confirmationTimer);
+      this.confirmationTimer = -1;
     }
   }
 
@@ -58,11 +64,13 @@ struct Index {
           // Medication Button
           this.MedicationButton()
 
+          // Medication Confirmation
+          if (this.medicationConfirmation) {
+            this.MedicationConfirmation()
+          }
+
           // Status Display
           this.StatusCard()
-
-          // Sensor Data Display
-          this.SensorDataCard()
 
           // Alert Display
           if (this.appState.latestPrediction !== null || this.appState.latestTremor !== null) {
@@ -71,9 +79,6 @@ struct Index {
 
           // Statistics
           this.StatisticsCard()
-
-          // Report Info
-          this.ReportInfoCard()
 
           // Control Buttons
           this.ControlButtons()
@@ -92,17 +97,53 @@ struct Index {
   MedicationButton() {
     Button('💊 Medication Taken')
       .width('100%')
-      .height(48)
+      .height(52)
       .fontSize(16)
       .fontWeight(FontWeight.Bold)
       .fontColor(Color.White)
       .backgroundColor('#2196F3')
-      .borderRadius(12)
-      .margin({ top: 12, bottom: 12 })
+      .borderRadius(16)
+      .shadow({ radius: 12, color: 0x202196F3, offsetX: 0, offsetY: 4 })
+      .margin({ top: 16, bottom: 12 })
       .onClick(async () => {
         const success = await this.recordMedication();
-        console.log(success ? '✓ Medication recorded' : '✗ Failed to record medication');
+        if (success) {
+          this.showMedicationConfirmation();
+        }
       })
+  }
+
+  @Builder
+  MedicationConfirmation() {
+    Row() {
+      Text('✓')
+        .fontSize(24)
+        .fontColor('#4CAF50')
+        .margin({ right: 12 })
+      
+      Column() {
+        Text('Medication Recorded')
+          .fontSize(16)
+          .fontWeight(FontWeight.Bold)
+          .fontColor('#1C1C1E')
+        Text(new Date().toLocaleTimeString())
+          .fontSize(12)
+          .fontColor('#8E8E93')
+          .margin({ top: 2 })
+      }
+      .alignItems(HorizontalAlign.Start)
+    }
+    .width('100%')
+    .padding(20)
+    .backgroundColor('#E8F5E9')
+    .borderRadius(16)
+    .border({ width: 2, color: '#4CAF50' })
+    .shadow({ radius: 8, color: 0x204CAF50, offsetX: 0, offsetY: 2 })
+    .margin({ bottom: 16 })
+    .animation({
+      duration: 300,
+      curve: Curve.EaseInOut
+    })
   }
 
   @Builder
@@ -141,93 +182,7 @@ struct Index {
     .margin({ bottom: 16 })
   }
 
-  @Builder
-  SensorDataCard() {
-    Column() {
-      Text('Live Sensor Data')
-        .fontSize(14)
-        .fontWeight(FontWeight.Bold)
-        .fontColor('#1C1C1E')
-        .margin({ bottom: 16 })
 
-      // Accelerometer
-      Column() {
-        Row() {
-          Text('📐')
-            .fontSize(16)
-            .margin({ right: 8 })
-          Text('Accelerometer')
-            .fontSize(13)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#3C3C43')
-        }
-        .margin({ bottom: 6 })
-        
-        Text(this.formatAccelData())
-          .fontSize(12)
-          .fontColor('#8E8E93')
-          .fontFamily('monospace')
-      }
-      .width('100%')
-      .padding(12)
-      .backgroundColor('#E8F5E9')
-      .borderRadius(10)
-      .margin({ bottom: 10 })
-
-      // Gyroscope
-      Column() {
-        Row() {
-          Text('🔄')
-            .fontSize(16)
-            .margin({ right: 8 })
-          Text('Gyroscope')
-            .fontSize(13)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#3C3C43')
-        }
-        .margin({ bottom: 6 })
-        
-        Text(this.formatGyroData())
-          .fontSize(12)
-          .fontColor('#8E8E93')
-          .fontFamily('monospace')
-      }
-      .width('100%')
-      .padding(12)
-      .backgroundColor('#E8F5E9')
-      .borderRadius(10)
-      .margin({ bottom: 10 })
-
-      // Heart Rate
-      Column() {
-        Row() {
-          Text('❤️')
-            .fontSize(16)
-            .margin({ right: 8 })
-          Text('Heart Rate')
-            .fontSize(13)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#3C3C43')
-        }
-        .margin({ bottom: 6 })
-        
-        Text(this.formatHeartRateData())
-          .fontSize(12)
-          .fontColor('#8E8E93')
-          .fontFamily('monospace')
-      }
-      .width('100%')
-      .padding(12)
-      .backgroundColor('#E8F5E9')
-      .borderRadius(10)
-    }
-    .width('100%')
-    .padding(20)
-    .backgroundColor(Color.White)
-    .borderRadius(16)
-    .shadow({ radius: 8, color: 0x10000000, offsetX: 0, offsetY: 2 })
-    .margin({ bottom: 16 })
-  }
 
   @Builder
   AlertCard() {
@@ -420,63 +375,7 @@ struct Index {
     .margin({ bottom: 16 })
   }
 
-  @Builder
-  ReportInfoCard() {
-    Column() {
-      Row() {
-        Text('📄')
-          .fontSize(16)
-          .margin({ right: 8 })
-        Text('Report File')
-          .fontSize(13)
-          .fontWeight(FontWeight.Bold)
-          .fontColor('#1C1C1E')
-      }
-      .margin({ bottom: 12 })
 
-      this.ReportInfoContent()
-    }
-    .width('100%')
-    .padding(16)
-    .backgroundColor('#E8F5E9')
-    .borderRadius(12)
-    .border({ width: 1, color: '#81C784' })
-    .margin({ bottom: 16 })
-  }
-
-  @Builder
-  ReportInfoContent() {
-    if (this.monitoringService.getReportLogger()) {
-      if (this.monitoringService.getReportLogger()!.getReport()) {
-        Column() {
-          Text(`Session: ${this.monitoringService.getReportLogger()!.getReport()!.sessionId}`)
-            .fontSize(10)
-            .fontColor('#8E8E93')
-            .margin({ bottom: 6 })
-          
-          Text(`${this.monitoringService.getReportLogger()!.getReport()!.freezePredictions.length} freeze predictions logged`)
-            .fontSize(12)
-            .fontColor('#3C3C43')
-            .fontWeight(FontWeight.Medium)
-            .margin({ bottom: 6 })
-          
-          Text(`Size: ${(this.monitoringService.getReportLogger()!.getReportSize() / 1024).toFixed(2)} KB`)
-            .fontSize(10)
-            .fontColor('#8E8E93')
-        }
-        .alignItems(HorizontalAlign.Start)
-        .width('100%')
-      } else {
-        Text('No active report')
-          .fontSize(12)
-          .fontColor('#8E8E93')
-      }
-    } else {
-      Text('Report logger not initialized')
-        .fontSize(12)
-        .fontColor('#8E8E93')
-    }
-  }
 
   @Builder
   ControlButtons() {
@@ -485,76 +384,28 @@ struct Index {
           this.appState.status === MonitoringStatus.ERROR) {
         Button('Start Monitoring')
           .width('100%')
-          .height(52)
-          .fontSize(16)
+          .height(56)
+          .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .backgroundColor('#2E7D32')
-          .borderRadius(14)
-          .shadow({ radius: 8, color: 0x202E7D32, offsetX: 0, offsetY: 4 })
+          .borderRadius(16)
+          .shadow({ radius: 12, color: 0x202E7D32, offsetX: 0, offsetY: 4 })
           .onClick(() => {
             this.monitoringService.startMonitoring();
           })
       } else {
         Button('Stop Monitoring')
           .width('100%')
-          .height(52)
-          .fontSize(16)
+          .height(56)
+          .fontSize(18)
           .fontWeight(FontWeight.Bold)
           .backgroundColor('#FF3B30')
-          .borderRadius(14)
-          .shadow({ radius: 8, color: 0x20FF3B30, offsetX: 0, offsetY: 4 })
+          .borderRadius(16)
+          .shadow({ radius: 12, color: 0x20FF3B30, offsetX: 0, offsetY: 4 })
           .onClick(() => {
             this.monitoringService.stopMonitoring();
           })
       }
-
-      Button('Test API Connection')
-        .width('100%')
-        .height(44)
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        .backgroundColor('#4CAF50')
-        .borderRadius(14)
-        .margin({ top: 12 })
-        .onClick(() => {
-          this.testAPI();
-        })
-
-      Button('View Data Collection Stats')
-        .width('100%')
-        .height(44)
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        .backgroundColor('#2196F3')
-        .borderRadius(14)
-        .margin({ top: 12 })
-        .onClick(() => {
-          this.showDataStats();
-        })
-
-      Button('Export Data Collection')
-        .width('100%')
-        .height(44)
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        .backgroundColor('#9C27B0')
-        .borderRadius(14)
-        .margin({ top: 12 })
-        .onClick(() => {
-          this.exportData();
-        })
-
-      Button('Show API Log Info')
-        .width('100%')
-        .height(44)
-        .fontSize(14)
-        .fontWeight(FontWeight.Medium)
-        .backgroundColor('#00796B')
-        .borderRadius(14)
-        .margin({ top: 12 })
-        .onClick(() => {
-          this.showAPILogInfo();
-        })
     }
     .width('100%')
     .margin({ bottom: 20 })
@@ -563,6 +414,21 @@ struct Index {
   // Helper methods
   private async recordMedication(): Promise<boolean> {
     return await this.monitoringService.recordMedicationIntake();
+  }
+
+  private showMedicationConfirmation(): void {
+    this.medicationConfirmation = true;
+    
+    // Clear existing timer if any
+    if (this.confirmationTimer !== -1) {
+      clearTimeout(this.confirmationTimer);
+    }
+    
+    // Hide confirmation after 3 seconds
+    this.confirmationTimer = setTimeout(() => {
+      this.medicationConfirmation = false;
+      this.confirmationTimer = -1;
+    }, 3000);
   }
 
   private getStatusText(): string {
@@ -595,29 +461,6 @@ struct Index {
     }
   }
 
-  private formatAccelData(): string {
-    if (this.appState.lastSavedAccel === null) {
-      return 'No data saved yet';
-    }
-    const a = this.appState.lastSavedAccel;
-    return `x:${a.x.toFixed(1)} y:${a.y.toFixed(1)} z:${a.z.toFixed(1)}`;
-  }
-
-  private formatGyroData(): string {
-    if (this.appState.lastSavedGyro === null) {
-      return 'No data saved yet';
-    }
-    const g = this.appState.lastSavedGyro;
-    return `x:${g.x.toFixed(1)} y:${g.y.toFixed(1)} z:${g.z.toFixed(1)}`;
-  }
-
-  private formatHeartRateData(): string {
-    if (this.appState.lastSavedHeartRate === null) {
-      return 'No data saved yet';
-    }
-    return `${Math.round(this.appState.lastSavedHeartRate.bpm)} BPM`;
-  }
-
   private formatSessionDuration(): string {
     if (this.appState.monitoringStartTime === 0) {
       return '';
@@ -634,76 +477,5 @@ struct Index {
     } else {
       return `Session: ${seconds}s`;
     }
-  }
-
-  private async testAPI(): Promise<void> {
-    const results = await this.monitoringService.testAPIConnectivity();
-    // TODO: Display results in a dialog
-    console.log('API Test Results:', results);
-  }
-
-  private showDataStats(): void {
-    const stats = this.monitoringService.getDataCollectionStats();
-    console.log('=== DATA COLLECTION STATS ===');
-    console.log(stats);
-    console.log('=============================');
-    
-    const logger = this.monitoringService.getDataCollectionLogger();
-    if (logger) {
-      const collection = logger.getCollection();
-      if (collection) {
-        console.log('Latest data sample:');
-        if (collection.accelerometerData.length > 0) {
-          const latest = collection.accelerometerData[collection.accelerometerData.length - 1];
-          console.log(`  Accel: x=${latest.x.toFixed(2)}, y=${latest.y.toFixed(2)}, z=${latest.z.toFixed(2)}`);
-        }
-        if (collection.heartRateData.length > 0) {
-          const latest = collection.heartRateData[collection.heartRateData.length - 1];
-          console.log(`  Heart Rate: ${latest.bpm} BPM`);
-        }
-      }
-    }
-  }
-
-  private exportData(): void {
-    const backupPath = this.monitoringService.exportDataCollection();
-    if (backupPath) {
-      console.log('=== DATA EXPORTED ===');
-      console.log(`File saved to: ${backupPath}`);
-      console.log('=====================');
-      console.log('You can access this file via:');
-      console.log('1. hdc file recv <remote_path> <local_path>');
-      console.log(`2. Remote path: ${backupPath}`);
-      console.log('======================');
-    } else {
-      console.log('ERROR: Failed to export data or data collection is disabled');
-    }
-  }
-
-  private showAPILogInfo(): void {
-    const logPath = this.monitoringService.getAPILogFilePath();
-    const stats = this.monitoringService.getAPILogStats();
-    
-    console.log('=== API CALL LOG INFO ===');
-    if (logPath) {
-      console.log(`Log file location: ${logPath}`);
-      console.log(`Total API calls: ${stats.total}`);
-      console.log(`Successful: ${stats.successful}`);
-      console.log(`Failed: ${stats.failed}`);
-      console.log('');
-      console.log('To access the api_calls.json file:');
-      console.log('1. Using hdc (HarmonyOS Device Connector):');
-      console.log(`   hdc file recv ${logPath} ./api_calls.json`);
-      console.log('');
-      console.log('2. The file contains:');
-      console.log('   - All API endpoints called');
-      console.log('   - Complete JSON payloads sent');
-      console.log('   - Response codes and bodies');
-      console.log('   - Success/failure status');
-      console.log('   - Timestamps for each call');
-    } else {
-      console.log('API logger not initialized yet');
-    }
-    console.log('=========================');
   }
 }

@@ -54,25 +54,25 @@ export class HeartRateLogger {
   /**
    * Add tremor/activity data - assigns to the correct minute based on tremor timestamp
    * Priority logic:
-   * 1. Keep valid tremor (sedentary + frequency >= 3.0 Hz) over other readings
+   * 1. Keep valid tremor (sedentary + meets thresholds) over other readings
    * 2. If no valid tremor exists yet, store any reading
-   * 3. Don't overwrite valid tremor with "active" or low-frequency readings
+   * 3. Don't overwrite valid tremor with "active" or low-threshold readings
    */
   public addTremorData(tremor: TremorEvent): void {
     const tremorMinute = this.getMinuteTimestamp(tremor.timestamp);
     
-    // Check if this is a valid tremor (sedentary with tremor-frequency motion)
+    // Check if this is a valid tremor (sedentary with motion meeting both thresholds)
     const isValidTremor = tremor.status === ActivityStatus.SEDENTARY && 
-                          tremor.frequency >= 3.0 && 
-                          tremor.magnitude > 0;
+                          tremor.frequency >= AppConfig.TREMOR_MIN_FREQUENCY && 
+                          tremor.magnitude >= AppConfig.TREMOR_MIN_MAGNITUDE;
     
     // If tremor belongs to current minute being collected
     if (tremorMinute === this.currentMinuteStart) {
       // Check if current stored data is a valid tremor
       const hasValidTremor = this.currentMinuteTremor !== null &&
                              this.currentMinuteTremor.status === ActivityStatus.SEDENTARY &&
-                             this.currentMinuteTremor.frequency >= 3.0 &&
-                             this.currentMinuteTremor.magnitude > 0;
+                             this.currentMinuteTremor.frequency >= AppConfig.TREMOR_MIN_FREQUENCY &&
+                             this.currentMinuteTremor.magnitude >= AppConfig.TREMOR_MIN_MAGNITUDE;
       
       // Only update if no data yet, or this is valid tremor, or current is not valid
       if (this.currentMinuteTremor === null || isValidTremor || !hasValidTremor) {
@@ -94,8 +94,8 @@ export class HeartRateLogger {
         const existingTremor = this.aggregatedMinutes[aggregateIndex].tremorData;
         const hasValidTremorInAggregate = existingTremor !== null &&
                                           existingTremor.status === ActivityStatus.SEDENTARY &&
-                                          existingTremor.frequency >= 3.0 &&
-                                          existingTremor.magnitude > 0;
+                                          existingTremor.frequency >= AppConfig.TREMOR_MIN_FREQUENCY &&
+                                          existingTremor.magnitude >= AppConfig.TREMOR_MIN_MAGNITUDE;
         
         // Only update if no data yet, or this is valid tremor, or existing is not valid
         if (existingTremor === null || isValidTremor || !hasValidTremorInAggregate) {

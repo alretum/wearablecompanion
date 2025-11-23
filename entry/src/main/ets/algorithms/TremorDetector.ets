@@ -106,11 +106,12 @@ export class TremorDetector {
       return null;
     }
     
-    // Filter out sub-tremor frequency motion (below 3.0 Hz)
-    // Only report actual tremor-frequency motion
-    if (result.status === 'sedentary' && result.frequency < 3.0 && result.frequency > 0) {
+    // Filter based on tremor detection thresholds
+    // Motion must meet or exceed BOTH magnitude and frequency thresholds to be classified as tremor
+    if (result.status === 'sedentary' && 
+        (result.magnitude < AppConfig.TREMOR_MIN_MAGNITUDE || result.frequency < AppConfig.TREMOR_MIN_FREQUENCY)) {
       hilog.info(DOMAIN, TAG, 
-        `Sub-tremor frequency detected (${result.frequency.toFixed(1)} Hz < 3.0 Hz) - not reporting as tremor`);
+        `Motion below tremor threshold (magnitude=${result.magnitude.toFixed(1)} < ${AppConfig.TREMOR_MIN_MAGNITUDE} or frequency=${result.frequency.toFixed(1)} < ${AppConfig.TREMOR_MIN_FREQUENCY} Hz) - not classified as tremor`);
       return null;
     }
     

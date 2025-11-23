@@ -20,6 +20,10 @@ export class AppConfig {
   static readonly FREEZE_PREDICTION_THRESHOLD = 0.7; // 70% probability
   static readonly HEART_RATE_SPIKE_THRESHOLD = 20; // BPM increase to consider as spike
   
+  // Tremor detection thresholds - Motion must meet or exceed BOTH thresholds to be classified as tremor
+  static readonly TREMOR_MIN_MAGNITUDE = 3.0; // Minimum magnitude (m/s²) to classify as tremor
+  static readonly TREMOR_MIN_FREQUENCY = 1.5; // Minimum frequency (Hz) to classify as tremor
+  
   // Data buffering
   static readonly SENSOR_BUFFER_SIZE = 100; // Keep last 100 readings (2 seconds at 50Hz)
   static readonly TREMOR_LOG_BATCH_SIZE = 10; // Send tremor reports in batches

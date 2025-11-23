@@ -3,9 +3,9 @@
   "logStartTimeISO": "2025-11-22T22:03:37.898Z",
   "deviceId": "DEVICE_1763849017896",
   "userId": "USER_1763849017896",
-  "totalRequests": 194,
-  "successfulRequests": 72,
-  "failedRequests": 122,
+  "totalRequests": 206,
+  "successfulRequests": 77,
+  "failedRequests": 129,
   "logs": [
     {
       "timestamp": 1763849318375,
@@ -4556,6 +4556,267 @@
       },
       "responseCode": 200,
       "responseBody": "{\"success\":true,\"reportId\":\"e2980b20-9e7f-491c-ab68-4d61230b2619\"}",
+      "success": true
+    },
+    {
+      "timestamp": 1763858111451,
+      "timestampISO": "2025-11-23T00:35:11.451Z",
+      "endpoint": "https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod/upload-report",
+      "method": "POST",
+      "payload": {
+        "sessionId": "SESSION_1763857810923",
+        "userId": "USER_1763857810923",
+        "deviceId": "DEVICE_1763857810923",
+        "sessionStart": 1763857810923,
+        "sessionEnd": 1763857810923,
+        "totalFreezes": 0,
+        "freezePredictions": [],
+        "lastUpdated": 1763857810923
+      },
+      "success": false,
+      "errorMessage": "[object Object]"
+    },
+    {
+      "timestamp": 1763858111462,
+      "timestampISO": "2025-11-23T00:35:11.462Z",
+      "endpoint": "https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate",
+      "method": "POST",
+      "payload": {
+        "userId": "USER_1763857810923",
+        "deviceId": "DEVICE_1763857810923",
+        "reportTimestamp": "2025-11-23T00:35:11.435Z",
+        "minuteData": [
+          {
+            "timestamp": "2025-11-23T00:34:00.000Z",
+            "avgBpm": 96.8,
+            "minBpm": 84,
+            "maxBpm": 108,
+            "tremorData": null
+          }
+        ]
+      },
+      "success": false,
+      "errorMessage": "[object Object]"
+    },
+    {
+      "timestamp": 1763858669703,
+      "timestampISO": "2025-11-23T00:44:29.703Z",
+      "endpoint": "https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod/upload-report",
+      "method": "POST",
+      "payload": {
+        "sessionId": "SESSION_1763858609218",
+        "userId": "USER_1763858609217",
+        "deviceId": "DEVICE_1763858609217",
+        "sessionStart": 1763858609218,
+        "sessionEnd": 1763858609218,
+        "totalFreezes": 0,
+        "freezePredictions": [],
+        "lastUpdated": 1763858609218
+      },
+      "success": false,
+      "errorMessage": "[object Object]"
+    },
+    {
+      "timestamp": 1763858670406,
+      "timestampISO": "2025-11-23T00:44:30.406Z",
+      "endpoint": "https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate",
+      "method": "POST",
+      "payload": {
+        "userId": "USER_1763858609217",
+        "deviceId": "DEVICE_1763858609217",
+        "reportTimestamp": "2025-11-23T00:44:29.592Z",
+        "minuteData": [
+          {
+            "timestamp": "2025-11-23T00:43:00.000Z",
+            "avgBpm": 87.9,
+            "minBpm": 85,
+            "maxBpm": 99,
+            "tremorData": {
+              "status": "sedentary",
+              "magnitude": 2,
+              "frequency": 1.8
+            }
+          }
+        ]
+      },
+      "responseCode": 200,
+      "responseBody": "{\"success\":true,\"reportId\":\"fcf03617-711c-42ad-bc39-b4525eccab15\"}",
+      "success": true
+    },
+    {
+      "timestamp": 1763858729654,
+      "timestampISO": "2025-11-23T00:45:29.654Z",
+      "endpoint": "https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod/upload-report",
+      "method": "POST",
+      "payload": {
+        "sessionId": "SESSION_1763858609218",
+        "userId": "USER_1763858609217",
+        "deviceId": "DEVICE_1763858609217",
+        "sessionStart": 1763858609218,
+        "sessionEnd": 1763858609218,
+        "totalFreezes": 0,
+        "freezePredictions": [],
+        "lastUpdated": 1763858609218
+      },
+      "success": false,
+      "errorMessage": "[object Object]"
+    },
+    {
+      "timestamp": 1763858730582,
+      "timestampISO": "2025-11-23T00:45:30.582Z",
+      "endpoint": "https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate",
+      "method": "POST",
+      "payload": {
+        "userId": "USER_1763858609217",
+        "deviceId": "DEVICE_1763858609217",
+        "reportTimestamp": "2025-11-23T00:45:29.586Z",
+        "minuteData": [
+          {
+            "timestamp": "2025-11-23T00:44:00.000Z",
+            "avgBpm": 97.8,
+            "minBpm": 90,
+            "maxBpm": 102,
+            "tremorData": {
+              "status": "active",
+              "magnitude": 5.9,
+              "frequency": 1
+            }
+          }
+        ]
+      },
+      "responseCode": 200,
+      "responseBody": "{\"success\":true,\"reportId\":\"150f6f0d-754d-44d9-952a-93d3192365e8\"}",
+      "success": true
+    },
+    {
+      "timestamp": 1763858789634,
+      "timestampISO": "2025-11-23T00:46:29.634Z",
+      "endpoint": "https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod/upload-report",
+      "method": "POST",
+      "payload": {
+        "sessionId": "SESSION_1763858609218",
+        "userId": "USER_1763858609217",
+        "deviceId": "DEVICE_1763858609217",
+        "sessionStart": 1763858609218,
+        "sessionEnd": 1763858609218,
+        "totalFreezes": 0,
+        "freezePredictions": [],
+        "lastUpdated": 1763858609218
+      },
+      "success": false,
+      "errorMessage": "[object Object]"
+    },
+    {
+      "timestamp": 1763858790897,
+      "timestampISO": "2025-11-23T00:46:30.897Z",
+      "endpoint": "https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate",
+      "method": "POST",
+      "payload": {
+        "userId": "USER_1763858609217",
+        "deviceId": "DEVICE_1763858609217",
+        "reportTimestamp": "2025-11-23T00:46:29.593Z",
+        "minuteData": [
+          {
+            "timestamp": "2025-11-23T00:45:00.000Z",
+            "avgBpm": 94.1,
+            "minBpm": 85,
+            "maxBpm": 104,
+            "tremorData": null
+          }
+        ]
+      },
+      "responseCode": 200,
+      "responseBody": "{\"success\":true,\"reportId\":\"f2f8dfbe-fc1c-4ec1-955d-546312d7ed32\"}",
+      "success": true
+    },
+    {
+      "timestamp": 1763858849745,
+      "timestampISO": "2025-11-23T00:47:29.745Z",
+      "endpoint": "https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod/upload-report",
+      "method": "POST",
+      "payload": {
+        "sessionId": "SESSION_1763858609218",
+        "userId": "USER_1763858609217",
+        "deviceId": "DEVICE_1763858609217",
+        "sessionStart": 1763858609218,
+        "sessionEnd": 1763858609218,
+        "totalFreezes": 0,
+        "freezePredictions": [],
+        "lastUpdated": 1763858609218
+      },
+      "success": false,
+      "errorMessage": "[object Object]"
+    },
+    {
+      "timestamp": 1763858850185,
+      "timestampISO": "2025-11-23T00:47:30.185Z",
+      "endpoint": "https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate",
+      "method": "POST",
+      "payload": {
+        "userId": "USER_1763858609217",
+        "deviceId": "DEVICE_1763858609217",
+        "reportTimestamp": "2025-11-23T00:47:29.600Z",
+        "minuteData": [
+          {
+            "timestamp": "2025-11-23T00:46:00.000Z",
+            "avgBpm": 89.6,
+            "minBpm": 82,
+            "maxBpm": 98,
+            "tremorData": {
+              "status": "active",
+              "magnitude": 8.3,
+              "frequency": 0.5
+            }
+          }
+        ]
+      },
+      "responseCode": 200,
+      "responseBody": "{\"success\":true,\"reportId\":\"093767da-e80e-49bc-84ce-fc331d17552a\"}",
+      "success": true
+    },
+    {
+      "timestamp": 1763858909647,
+      "timestampISO": "2025-11-23T00:48:29.647Z",
+      "endpoint": "https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod/upload-report",
+      "method": "POST",
+      "payload": {
+        "sessionId": "SESSION_1763858609218",
+        "userId": "USER_1763858609217",
+        "deviceId": "DEVICE_1763858609217",
+        "sessionStart": 1763858609218,
+        "sessionEnd": 1763858609218,
+        "totalFreezes": 0,
+        "freezePredictions": [],
+        "lastUpdated": 1763858609218
+      },
+      "success": false,
+      "errorMessage": "[object Object]"
+    },
+    {
+      "timestamp": 1763858910188,
+      "timestampISO": "2025-11-23T00:48:30.188Z",
+      "endpoint": "https://smmwnlhdcrauwnstfasu.supabase.co/functions/v1/upload-heartrate",
+      "method": "POST",
+      "payload": {
+        "userId": "USER_1763858609217",
+        "deviceId": "DEVICE_1763858609217",
+        "reportTimestamp": "2025-11-23T00:48:29.601Z",
+        "minuteData": [
+          {
+            "timestamp": "2025-11-23T00:47:00.000Z",
+            "avgBpm": 90.5,
+            "minBpm": 82,
+            "maxBpm": 103,
+            "tremorData": {
+              "status": "active",
+              "magnitude": 2.3,
+              "frequency": 0.4
+            }
+          }
+        ]
+      },
+      "responseCode": 200,
+      "responseBody": "{\"success\":true,\"reportId\":\"67cac091-0962-49d5-9702-9c0b232a3c64\"}",
       "success": true
     }
   ]

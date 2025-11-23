@@ -4,7 +4,7 @@
  * This data is sent to AWS heart rate endpoint every 5 minutes
  */
 
-import { HeartRateData, TremorEvent } from '../sensors/SensorData';
+import { HeartRateData, TremorEvent, ActivityStatus } from '../sensors/SensorData';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { AppConfig } from '../config/AppConfig';
 
@@ -53,10 +53,38 @@ export class HeartRateLogger {
 
   /**
    * Add tremor/activity data for current minute
-   * Only the most recent tremor data per minute is kept
+   * Priority logic:
+   * 1. Keep valid tremor (sedentary + frequency >= 3.0 Hz) over other readings
+   * 2. If no valid tremor exists yet, store any reading
+   * 3. Don't overwrite valid tremor with "active" or low-frequency readings
    */
   public addTremorData(tremor: TremorEvent): void {
-    this.currentMinuteTremor = tremor;
+    // Check if this is a valid tremor (sedentary with tremor-frequency motion)
+    const isValidTremor = tremor.status === ActivityStatus.SEDENTARY && 
+                          tremor.frequency >= 3.0 && 
+                          tremor.magnitude > 0;
+    
+    // Check if current stored data is a valid tremor
+    const hasValidTremor = this.currentMinuteTremor !== null &&
+                           this.currentMinuteTremor.status === ActivityStatus.SEDENTARY &&
+                           this.currentMinuteTremor.frequency >= 3.0 &&
+                           this.currentMinuteTremor.magnitude > 0;
+    
+    // Only update if:
+    // - We don't have any tremor data yet, OR
+    // - This is a valid tremor (always replace with valid tremor), OR
+    // - Current data is NOT a valid tremor (can be replaced)
+    if (this.currentMinuteTremor === null || isValidTremor || !hasValidTremor) {
+      this.currentMinuteTremor = tremor;
+      
+      if (isValidTremor) {
+        hilog.info(DOMAIN, TAG, 
+          `Valid tremor stored for minute: magnitude=${tremor.magnitude.toFixed(1)}, frequency=${tremor.frequency.toFixed(1)}Hz`);
+      }
+    } else {
+      hilog.debug(DOMAIN, TAG, 
+        `Keeping existing valid tremor, ignoring ${tremor.status} reading`);
+    }
   }
 
   /**

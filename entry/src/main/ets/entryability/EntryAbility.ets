@@ -1,4 +1,4 @@
-import { AbilityConstant, ConfigurationConstant, UIAbility, Want } from '@kit.AbilityKit';
+import { AbilityConstant, ConfigurationConstant, UIAbility, Want, common } from '@kit.AbilityKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { window } from '@kit.ArkUI';
 import { MonitoringService } from '../services/MonitoringService';
@@ -8,8 +8,10 @@ const DOMAIN = 0x0000;
 
 export default class EntryAbility extends UIAbility {
   private monitoringService: MonitoringService | null = null;
+  private static currentInstance: EntryAbility | null = null;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
+    EntryAbility.currentInstance = this;
     this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
     
@@ -27,12 +29,10 @@ export default class EntryAbility extends UIAbility {
 
   onDestroy(): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
-    
-    // DON'T stop monitoring - keep it running in background
-    // Only cleanup UI-related resources
-    // The monitoring service will continue running via the continuous background task
-    hilog.info(DOMAIN, 'testTag', 'Keeping monitoring active in background');
+    // Monitoring continues via continuous task
   }
+
+  // Background service functionality removed - using continuous tasks instead
 
   onWindowStageCreate(windowStage: window.WindowStage): void {
     // Main window is created, set main page for this ability

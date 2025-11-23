@@ -18,8 +18,8 @@ const TAG = 'MotionAnalyzer';
 
 export interface AnalysisResult {
   status: 'active' | 'sedentary';
-  magnitude: number;  // 0.0-10.0 score
-  frequency: number;  // Hz
+  magnitude: number;  // 0.0-10.0 motion intensity (always calculated)
+  frequency: number;  // Hz (0 if not periodic)
   isValid: boolean;   // False if insufficient data
 }
 
@@ -60,32 +60,39 @@ export class MotionAnalyzer {
 
     // Step B: Activity Gate (Walking Filter)
     const variance = this.calculateVariance(signal);
-    if (variance > this.WALK_THRESH) {
-      hilog.debug(DOMAIN, TAG, `Active state detected (variance=${variance.toFixed(3)} > ${this.WALK_THRESH})`);
-      return {
-        status: 'active',
-        magnitude: 0,
-        frequency: 0,
-        isValid: true
-      };
-    }
-
-    // Step C: Metric Extraction (Sedentary Only)
+    
+    // Step C: Metric Extraction (for both active and sedentary states)
     const mad = this.calculateMAD(signal);
     const frequency = this.calculateZCR(signal, xData.length);
 
     // Step D: Scoring & Classification
-    let score = 0;
-    if (frequency >= this.MIN_FREQ_HZ) {
-      score = Math.min((mad / this.SCALING_FACTOR) * 10, 10.0);
+    // Always calculate magnitude (motion intensity) regardless of activity status
+    const motionMagnitude = Math.min((mad / this.SCALING_FACTOR) * 10, 10.0);
+    
+    // Round to 1 decimal place
+    const roundedScore = Math.round(motionMagnitude * 10) / 10;
+    const roundedFreq = Math.round(frequency * 10) / 10;
+    
+    // Determine activity status based on variance
+    if (variance > this.WALK_THRESH) {
+      hilog.debug(DOMAIN, TAG, 
+        `Active state detected (variance=${variance.toFixed(3)} > ${this.WALK_THRESH}), Magnitude=${roundedScore}, Freq=${roundedFreq}Hz`);
+      return {
+        status: 'active',
+        magnitude: roundedScore,
+        frequency: roundedFreq,
+        isValid: true
+      };
     }
 
-    // Round to 1 decimal place
-    const roundedScore = Math.round(score * 10) / 10;
-    const roundedFreq = Math.round(frequency * 10) / 10;
+    // Sedentary state - log additional info about tremor frequency
+    if (frequency < this.MIN_FREQ_HZ) {
+      hilog.debug(DOMAIN, TAG, 
+        `Low frequency motion: ${frequency.toFixed(1)} Hz < ${this.MIN_FREQ_HZ} Hz minimum`);
+    }
 
     hilog.debug(DOMAIN, TAG, 
-      `Sedentary: MAD=${mad.toFixed(3)}, Freq=${roundedFreq}Hz, Score=${roundedScore}`);
+      `Sedentary: MAD=${mad.toFixed(3)}, Freq=${roundedFreq}Hz, Magnitude=${roundedScore}`);
 
     return {
       status: 'sedentary',

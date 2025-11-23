@@ -106,6 +106,14 @@ export class TremorDetector {
       return null;
     }
     
+    // Filter out sub-tremor frequency motion (below 3.0 Hz)
+    // Only report actual tremor-frequency motion
+    if (result.status === 'sedentary' && result.frequency < 3.0 && result.frequency > 0) {
+      hilog.info(DOMAIN, TAG, 
+        `Sub-tremor frequency detected (${result.frequency.toFixed(1)} Hz < 3.0 Hz) - not reporting as tremor`);
+      return null;
+    }
+    
     // Convert to TremorEvent
     const status = result.status === 'active' ? ActivityStatus.ACTIVE : ActivityStatus.SEDENTARY;
     
